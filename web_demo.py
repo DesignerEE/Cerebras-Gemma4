@@ -7,11 +7,16 @@ Run:
     open http://localhost:8000
 
 Endpoints:
-    GET  /              dashboard
-    POST /api/start     {metric, sweep_requests, race_requests, concurrency, max_tokens, mock}
-    POST /api/stop      stop current run
-    GET  /api/status    current status
-    GET  /api/stream    SSE events
+    GET  /                   dashboard
+    POST /api/start          {metric, sweep_requests, race_requests, concurrency, max_tokens}
+    POST /api/stop           stop current run
+    GET  /api/status         current status
+    GET  /api/stream         SSE events
+    GET  /api/race/report    last deterministic report
+    POST /api/race/report/llm  LLM narrative report
+    POST /api/news/start     {query, angles}
+    POST /api/news/stop      stop news search
+    GET  /api/news/stream    news SSE events
 """
 
 from __future__ import annotations
@@ -26,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -61,12 +66,6 @@ class NewsStartRequest(BaseModel):
     angles: list[str] | None = None
 
 
-class NewsDemoRequest(BaseModel):
-    """Body for POST /api/news/demo. All fields optional — mocked pipeline."""
-    query: str = "OpenAI GPT-5 launch"
-    angles: list[str] | None = None
-
-
 class RaceManager:
     def __init__(self):
         self.task: asyncio.Task | None = None
@@ -96,6 +95,99 @@ class RaceManager:
             "compressed": sum(1 for c in completions if c.compressed),
         }
 
+    @staticmethod
+    def _score(summary: dict[str, Any], metric: str) -> float:
+        if metric == "tok/s":
+            return summary["tok_per_sec"]
+        if metric == "req/s":
+            return summary["req_per_sec"]
+        # balanced — weighted combo normalised to per-minute ceilings
+        return summary["req_per_sec"] / (1000 / 60) + summary["tok_per_sec"] / (1_000_000 / 60)
+
+    def _build_race_report(
+        self,
+        metric: str,
+        summaries: list[dict[str, Any]],
+        race_summary: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Deterministic post-race report. No LLM call.
+
+        Picks winner & runner-up by metric, computes margin, and templated
+        verdict. Used by the 'Show Report' button; the LLM Analysis button
+        hits /api/race/report/llm for a narrative version.
+        """
+        ranked = sorted(summaries, key=lambda s: self._score(s, metric), reverse=True)
+        winner = ranked[0]
+        runner_up = ranked[1] if len(ranked) > 1 else None
+        win_score = self._score(winner, metric)
+        runner_score = self._score(runner_up, metric) if runner_up else 0.0
+        margin_pct = (((win_score - runner_score) / runner_score) * 100
+                      if runner_score > 0 else float("inf"))
+
+        if margin_pct == float("inf"):
+            verdict_strength = "was the only config tested and"
+        elif margin_pct > 25:
+            verdict_strength = "dominated"
+        elif margin_pct > 10:
+            verdict_strength = "clearly beat"
+        elif margin_pct > 3:
+            verdict_strength = "edged out"
+        else:
+            verdict_strength = "essentially tied with"
+
+        runner_phrase = (
+            f"the field on {metric}: {win_score:.1f} vs runner-up's "
+            f"{runner_score:.1f} ({margin_pct:+.1f}%)"
+            if runner_up else
+            f"the field on {metric}: {win_score:.1f} (no runner-up)"
+        )
+        verdict = (
+            f"Config {winner['config']['name']} "
+            f"(concurrency={winner['config']['concurrency']}, "
+            f"max_tokens={winner['config']['max_completion_tokens']}) "
+            f"{verdict_strength} {runner_phrase}. "
+            f"Over {race_summary.get('actual_duration_sec', 0):.1f}s of sustained racing "
+            f"it held {race_summary.get('tok_per_sec', 0):.1f} tok/s "
+            f"({race_summary.get('num_requests', 0)} requests, "
+            f"avg latency {race_summary.get('avg_latency', 0) * 1000:.0f}ms)."
+        )
+
+        return {
+            "metric": metric,
+            "winner": {
+                "name": winner["config"]["name"],
+                "concurrency": winner["config"]["concurrency"],
+                "max_tokens": winner["config"]["max_completion_tokens"],
+                "score": win_score,
+                "tok_per_sec": winner["tok_per_sec"],
+                "req_per_sec": winner["req_per_sec"],
+                "avg_latency_ms": winner["avg_latency"] * 1000,
+            },
+            "runner_up": ({
+                "name": runner_up["config"]["name"],
+                "concurrency": runner_up["config"]["concurrency"],
+                "max_tokens": runner_up["config"]["max_completion_tokens"],
+                "score": runner_score,
+            } if runner_up else None),
+            "margin_pct": margin_pct if margin_pct != float("inf") else None,
+            "race_actual_duration_sec": race_summary.get("actual_duration_sec",
+                                                         race_summary.get("batch_time", 0)),
+            "race_total_requests": race_summary.get("num_requests", 0),
+            "race_avg_latency_ms": race_summary.get("avg_latency", 0) * 1000,
+            "all_configs": [
+                {
+                    "name": s["config"]["name"],
+                    "concurrency": s["config"]["concurrency"],
+                    "max_tokens": s["config"]["max_completion_tokens"],
+                    "score": self._score(s, metric),
+                    "tok_per_sec": s["tok_per_sec"],
+                    "req_per_sec": s["req_per_sec"],
+                }
+                for s in ranked
+            ],
+            "verdict": verdict,
+        }
+
     async def run(
         self,
         metric: str,
@@ -103,7 +195,6 @@ class RaceManager:
         race_requests: int,
         concurrency: list[int],
         max_tokens: list[int],
-        mock: bool,
     ):
         self.stop_event.clear()
         self.results = None
@@ -115,15 +206,13 @@ class RaceManager:
                 concurrency=8,
                 enable_cache=False,  # cache would pollute throughput measurements
                 enable_compression=True,
-                mock=mock,
             ) as client:
                 self.client = client
 
                 # Preflight
-                if not mock:
-                    await self._emit({"type": "log", "level": "info", "text": "Preflight check..."})
-                    pre = await client.complete("Say hello world.", max_completion_tokens=50)
-                    await self._emit({"type": "log", "level": "info", "text": f"Preflight OK: {pre.completion_tokens} tokens in {pre.latency:.3f}s"})
+                await self._emit({"type": "log", "level": "info", "text": "Preflight check..."})
+                pre = await client.complete("Say hello world.", max_completion_tokens=50)
+                await self._emit({"type": "log", "level": "info", "text": f"Preflight OK: {pre.completion_tokens} tokens in {pre.latency:.3f}s"})
 
                 # Sweep
                 await self._emit({"type": "log", "level": "info", "text": f"Running {len(concurrency)*len(max_tokens)} scouts..."})
@@ -158,19 +247,47 @@ class RaceManager:
                 best = max(summaries, key=score)
                 await self._emit({"type": "best_config", "summary": best})
 
-                # Race
-                await self._emit({"type": "log", "level": "info", "text": f"Racing with {best['config']['name']}..."})
+                # Race — time-bound: random target in [20, 35]s, chunked so we
+                # can check the deadline between batches. Total wall time may
+                # overshoot by up to one chunk's duration (one wave of requests).
+                race_duration_sec = random.uniform(20, 35)
+                await self._emit({"type": "log", "level": "info",
+                                  "text": f"Racing with {best['config']['name']} for ~{race_duration_sec:.0f}s..."})
                 client.concurrency = best["config"]["concurrency"]
                 client.semaphore = asyncio.Semaphore(client.concurrency)
-                prompts = self._make_prompts(race_requests, best["config"]["max_completion_tokens"])
+                max_t = best["config"]["max_completion_tokens"]
+                chunk_size = max(client.concurrency, 8)
+
+                all_completions: list[CompletionResult] = []
                 start = asyncio.get_event_loop().time()
-                completions = await client.bulk_complete(prompts, max_completion_tokens=best["config"]["max_completion_tokens"], progress_queue=self.queue)
+                batch_idx = 0
+                while True:
+                    elapsed = asyncio.get_event_loop().time() - start
+                    if elapsed >= race_duration_sec:
+                        break
+                    if self.stop_event.is_set():
+                        raise asyncio.CancelledError()
+                    prompts = self._make_prompts(chunk_size, max_t)
+                    chunk = await client.bulk_complete(
+                        prompts, max_completion_tokens=max_t, progress_queue=self.queue,
+                    )
+                    all_completions.extend(chunk)
+                    batch_idx += 1
+                    await self._emit({"type": "log", "level": "debug",
+                                      "text": f"Wave {batch_idx}: {len(all_completions)} reqs in {elapsed:.1f}s"})
+
                 batch_time = asyncio.get_event_loop().time() - start
                 race_summary = {
                     "config": best["config"],
-                    **self._summary(completions, batch_time),
+                    **self._summary(all_completions, batch_time),
+                    "target_duration_sec": race_duration_sec,
+                    "actual_duration_sec": batch_time,
                 }
                 await self._emit({"type": "race_complete", "summary": race_summary})
+
+                # Build deterministic post-race report
+                report = self._build_race_report(metric, summaries, race_summary)
+                await self._emit({"type": "race_report", "report": report})
 
                 self.results = {
                     "metric": metric,
@@ -178,6 +295,7 @@ class RaceManager:
                     "race": race_summary,
                     "summaries": summaries,
                     "client_metrics": client.report(),
+                    "report": report,
                 }
                 self.status = {"state": "done", "message": "Benchmark complete"}
         except asyncio.CancelledError:
@@ -224,7 +342,7 @@ class NewsManager:
 
         try:
             async with CerebrasRaceClient(
-                concurrency=6,
+                concurrency=12,  # tuned for 3 scouts + commander parallelism
                 enable_cache=False,
                 enable_compression=True,
             ) as client:
@@ -246,72 +364,6 @@ class NewsManager:
         if self.task and not self.task.done():
             raise RuntimeError("News search already running")
         self.task = asyncio.create_task(self.run(query, angles))
-
-    async def run_demo(self, query: str = "OpenAI GPT-5 launch", angles: list[str] | None = None):
-        """Mocked end-to-end run — no network, no API key, no cost.
-        Emits the same event shapes as run() so the dashboard renders it identically.
-        Used by the pytest e2e test and the /api/news/demo button.
-        """
-        from unittest.mock import patch
-        from cerebras_race_client import CompletionResult
-
-        self.stop_event.clear()
-        self.results = None
-        self.status = {"state": "running", "message": f"DEMO: {query}"}
-        await self._emit({"type": "status", **self.status})
-
-        CANNED_RSS = {
-            "entries": [
-                {"title": "OpenAI launches GPT-5", "link": "https://example.com/gpt5",
-                 "published": "2026-06-20", "summary": "OpenAI announced GPT-5 with major reasoning gains."},
-                {"title": "Industry reacts to GPT-5", "link": "https://example.com/react",
-                 "published": "2026-06-20", "summary": "Competitors and analysts weigh in."},
-            ],
-        }
-        CANNED_PAGES = {
-            "https://example.com/gpt5": "OpenAI today launched GPT-5. It scores 95% on MMLU. Price is $5/Mtok in, $15/Mtok out.",
-            "https://example.com/react": "Anthropic, Google, and Meta all responded. Anthropic emphasized safety. Google noted speed.",
-        }
-
-        async def _fake_feed(url, timeout=15.0):
-            return CANNED_RSS
-        async def _fake_page(url, timeout=12.0):
-            return CANNED_PAGES.get(url, "Generic article body text.")
-
-        class _FakeClient:
-            async def __aenter__(self): return self
-            async def __aexit__(self, *a): pass
-            async def complete(self, prompt, max_completion_tokens=1000, **kw):
-                p = prompt.lower()
-                if "you are the commander" in p or "synthesize" in p:
-                    text = ("Based on scout reports, OpenAI launched GPT-5 with 95% MMLU. "
-                            "Sources disagree on pricing impact. See https://example.com/gpt5.")
-                else:
-                    text = "Scout summary: GPT-5 launched; strong benchmarks; mixed industry reaction."
-                return CompletionResult(text=text, completion_tokens=30, prompt_tokens=100,
-                                         total_tokens=130, latency=0.05)
-
-        try:
-            with patch("news_agents.fetch_feed", side_effect=_fake_feed), \
-                 patch("news_agents.fetch_page", side_effect=_fake_page):
-                team = NewsAgentTeam(_FakeClient(), angles=angles or ["latest breaking news"])
-                report = await team.search(query, progress_queue=self.queue)
-                self.results = report.model_dump()
-                self.status = {"state": "done", "message": "Demo complete"}
-        except asyncio.CancelledError:
-            self.status = {"state": "stopped", "message": "Stopped by user"}
-            await self._emit({"type": "status", **self.status})
-            raise
-        except Exception as e:
-            self.status = {"state": "error", "message": str(e)}
-            await self._emit({"type": "error", "error": str(e), "traceback": traceback.format_exc()})
-        finally:
-            await self._emit({"type": "status", **self.status})
-
-    def start_demo(self, query: str = "OpenAI GPT-5 launch", angles: list[str] | None = None):
-        if self.task and not self.task.done():
-            raise RuntimeError("News search already running")
-        self.task = asyncio.create_task(self.run_demo(query, angles))
 
     def stop(self):
         if self.task and not self.task.done():
@@ -354,7 +406,6 @@ async def start_benchmark(request: Request):
             race_requests=int(data.get("race_requests", 50)),
             concurrency=[int(x) for x in data.get("concurrency", [8, 16, 24])],
             max_tokens=[int(x) for x in data.get("max_tokens", [500, 1000])],
-            mock=bool(data.get("mock", False)),
         )
         return {"ok": True, "status": race_manager.status}
     except Exception as e:
@@ -365,6 +416,77 @@ async def start_benchmark(request: Request):
 async def stop_benchmark():
     ok = race_manager.stop()
     return {"ok": ok, "status": race_manager.status}
+
+
+@app.post("/api/race/report/llm")
+async def race_report_llm():
+    """Generate an LLM narrative analysis of the last race's results.
+
+    Uses a fresh single-shot CerebrasRaceClient (the race client is closed
+    by the time the user clicks the button). Reads from race_manager.results.
+    """
+    if not race_manager.results:
+        return JSONResponse(
+            status_code=400,
+            content={"ok": False, "error": "no race results yet — run a race first"},
+        )
+
+    r = race_manager.results
+    metric = r.get("metric", "tok/s")
+    summaries = r.get("summaries", [])
+    race = r.get("race", {})
+
+    def _fmt(s):
+        return (f"- {s['config']['name']} (c={s['config']['concurrency']}, "
+                f"t={s['config']['max_completion_tokens']}): "
+                f"{s.get('tok_per_sec', 0):.1f} tok/s, "
+                f"{s.get('req_per_sec', 0):.1f} req/s, "
+                f"avg latency {s.get('avg_latency', 0)*1000:.0f}ms")
+
+    sweep_lines = "\n".join(_fmt(s) for s in summaries) or "- (no sweep data)"
+    winner_name = r.get("best", {}).get("config", {}).get("name", "unknown")
+
+    prompt = (
+        f"You are a benchmark race analyst. In 2-3 tight paragraphs, explain why "
+        f"the winning config won this Cerebras inference race.\n\n"
+        f"Optimization metric: {metric}\n"
+        f"Race duration: {race.get('actual_duration_sec', race.get('batch_time', 0)):.1f}s\n\n"
+        f"Configs tested during sweep:\n{sweep_lines}\n\n"
+        f"Winner: {winner_name}\n"
+        f"Sustained race result: {race.get('tok_per_sec', 0):.1f} tok/s, "
+        f"{race.get('num_requests', 0)} requests completed, "
+        f"avg latency {race.get('avg_latency', 0)*1000:.0f}ms.\n\n"
+        f"Cover:\n"
+        f"1. Why the winner won — what concurrency/token tradeoff did it strike?\n"
+        f"2. What the runner-up configs revealed about the API's behavior under load\n"
+        f"3. One concrete recommendation for the next race\n"
+    )
+
+    try:
+        async with CerebrasRaceClient(
+            concurrency=1, enable_cache=False, enable_compression=True,
+        ) as client:
+            result = await client.complete(
+                prompt, max_completion_tokens=800, temperature=0.4,
+            )
+        return {"ok": True, "report": result.text}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+
+@app.get("/api/race/report")
+async def race_report():
+    """Return the deterministic post-race report for the last completed race.
+
+    Lets the 'Show Report' button work even if the SSE race_report event was
+    missed (e.g., page reload, stream reconnect).
+    """
+    if not race_manager.results or "report" not in race_manager.results:
+        return JSONResponse(
+            status_code=404,
+            content={"ok": False, "error": "no race results yet — run a race first"},
+        )
+    return {"ok": True, "report": race_manager.results["report"]}
 
 
 @app.get("/api/status")
@@ -386,7 +508,7 @@ async def event_stream():
             except asyncio.TimeoutError:
                 yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
             if race_manager.status.get("state") in ("done", "error", "stopped"):
-                # Drain any events emitted after state change (e.g. fast mocked runs)
+                # Drain any events emitted after state change
                 while not race_manager.queue.empty():
                     event = await race_manager.queue.get()
                     yield f"data: {json.dumps(event, default=str)}\n\n"
@@ -415,18 +537,6 @@ async def stop_news():
     return {"ok": ok, "status": news_manager.status}
 
 
-@app.post("/api/news/demo")
-async def demo_news(req: NewsDemoRequest):
-    """Run the mocked news pipeline. Zero API cost. Events flow through /api/news/stream."""
-    try:
-        query = (req.query or "OpenAI GPT-5 launch").strip() or "OpenAI GPT-5 launch"
-        angles = req.angles or ["latest breaking news"]
-        news_manager.start_demo(query, angles=angles)
-        return {"ok": True, "status": news_manager.status, "demo": True}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}, 400
-
-
 @app.get("/api/news/stream")
 async def news_event_stream():
     async def generator():
@@ -438,7 +548,7 @@ async def news_event_stream():
             except asyncio.TimeoutError:
                 yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
             if news_manager.status.get("state") in ("done", "error", "stopped"):
-                # Drain any events emitted after state change (e.g. fast mocked runs)
+                # Drain any events emitted after state change
                 while not news_manager.queue.empty():
                     event = await news_manager.queue.get()
                     yield f"data: {json.dumps(event, default=str)}\n\n"

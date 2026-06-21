@@ -647,11 +647,15 @@
           <input id="concurrency" type="text" value="8,16,24,32">
           <label>Max tokens</label>
           <input id="max_tokens" type="text" value="500,1000,1500">
-          <label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.8rem;">
-            <input id="mock" type="checkbox"> Mock mode
-          </label>
           <button id="btn-start" class="btn-start">Start Race</button>
           <button id="btn-stop" class="btn-stop" disabled>Abort</button>
+          <button id="btn-report-template" class="btn-start" style="background: var(--panel); border-color: var(--accent); color: var(--accent);" disabled>Show Report</button>
+          <button id="btn-report-llm" class="btn-start" style="background: var(--panel); border-color: var(--accent); color: var(--accent);" disabled>LLM Analysis</button>
+        </div>
+
+        <div id="race-report-container" class="panel" style="display: none; margin-top: 1rem;">
+          <div class="panel-title">Race Report</div>
+          <div id="race-report-content" style="white-space: pre-wrap; line-height: 1.5;"></div>
         </div>
 
         <div class="panel">
@@ -771,7 +775,6 @@
             <label><input type="checkbox" class="news-angle" value="market and industry reaction" checked> Market</label>
           </div>
           <button id="news-btn-start" class="btn-start">Deploy Scouts</button>
-          <button id="news-btn-demo" class="btn-start" style="background: var(--panel); border-color: var(--accent); color: var(--accent);">Demo Run (No API)</button>
           <button id="news-btn-stop" class="btn-stop" disabled>Abort</button>
         </div>
 
@@ -1104,6 +1107,11 @@
         radioLog(logsEl, 'Engineer', `Chequered flag! ${msg.summary.tok_per_sec.toFixed(0)} tok/s, ${msg.summary.req_per_sec.toFixed(2)} req/s`);
         updateGauges(msg.summary.req_per_sec, msg.summary.tok_per_sec, msg.summary.avg_latency);
         setTrackProgress(100);
+      } else if (msg.type === 'race_report') {
+        window._lastRaceReport = msg.report;
+        $('btn-report-template').disabled = false;
+        $('btn-report-llm').disabled = false;
+        radioLog(logsEl, 'Engineer', 'Race report ready — click Show Report or LLM Analysis.');
       } else if (msg.type === 'error') {
         radioLog(logsEl, 'Race Control', msg.error, 'error');
       }
@@ -1149,7 +1157,6 @@
         race_requests: parseInt($('race_requests').value),
         concurrency: $('concurrency').value.split(',').map(x => parseInt(x.trim())),
         max_tokens: $('max_tokens').value.split(',').map(x => parseInt(x.trim())),
-        mock: $('mock').checked,
       };
       const res = await fetch('/api/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
@@ -1161,6 +1168,98 @@
       await fetch('/api/stop', { method: 'POST' });
       SoundEngine.abortTone();
       radioLog(logsEl, 'Race Control', 'Race aborted');
+    });
+
+    // --- RACE REPORTS ---
+    function showReportContainer() {
+      const c = $('race-report-container');
+      const content = $('race-report-content');
+      c.style.display = 'block';
+      return content;
+    }
+    function renderTemplateReport(r) {
+      const lines = [];
+      const fmt = (v, d = 1) => (typeof v === 'number' && isFinite(v)) ? v.toFixed(d) : String(v);
+      lines.push('=== RACE REPORT ===');
+      lines.push('');
+      lines.push(`Metric:         ${r.metric}`);
+      lines.push(`Winner:         ${r.winner.name}`);
+      if (r.runner_up) {
+        lines.push(`Runner-up:      ${r.runner_up.name}`);
+        lines.push(`Margin:         ${(r.margin_pct === null ? 'N/A' : fmt(r.margin_pct) + '%')}`);
+      } else {
+        lines.push(`Runner-up:      (none — only one config tested)`);
+        lines.push(`Margin:         N/A`);
+      }
+      lines.push(`Verdict:        ${r.verdict}`);
+      lines.push('');
+      lines.push('--- Winner stats ---');
+      lines.push(`score:          ${fmt(r.winner.score)}`);
+      lines.push(`tok/s:          ${fmt(r.winner.tok_per_sec, 0)}`);
+      lines.push(`req/s:          ${fmt(r.winner.req_per_sec, 2)}`);
+      lines.push(`avg latency:    ${fmt(r.winner.avg_latency_ms, 0)} ms`);
+      lines.push(`config:         conc=${r.winner.concurrency} max_tok=${r.winner.max_tokens}`);
+      if (r.runner_up) {
+        lines.push('');
+        lines.push('--- Runner-up stats ---');
+        lines.push(`score:          ${fmt(r.runner_up.score)}`);
+        lines.push(`config:         conc=${r.runner_up.concurrency} max_tok=${r.runner_up.max_tokens}`);
+      }
+      lines.push('');
+      lines.push('--- Race phase ---');
+      lines.push(`duration:       ${fmt(r.race_actual_duration_sec)}s`);
+      lines.push(`total reqs:     ${r.race_total_requests}`);
+      lines.push(`avg latency:    ${fmt(r.race_avg_latency_ms, 0)} ms`);
+      lines.push('');
+      lines.push('--- All configs (ranked) ---');
+      (r.all_configs || []).forEach((c, i) => {
+        lines.push(`  ${i + 1}. ${c.name} — conc=${c.concurrency} max_tok=${c.max_tokens}`);
+        lines.push(`     score=${fmt(c.score)}  ${fmt(c.tok_per_sec, 0)} tok/s  ${fmt(c.req_per_sec, 2)} req/s`);
+      });
+      return lines.join('\n');
+    }
+
+    async function fetchRaceReport() {
+      const cached = window._lastRaceReport;
+      if (cached) return { ok: true, report: cached };
+      try {
+        const res = await fetch('/api/race/report');
+        return await res.json();
+      } catch (e) {
+        return { ok: false, error: e.message };
+      }
+    }
+
+    $('btn-report-template').addEventListener('click', async () => {
+      const content = showReportContainer();
+      content.textContent = 'Loading report...';
+      const data = await fetchRaceReport();
+      if (data.ok) {
+        window._lastRaceReport = data.report;
+        content.textContent = renderTemplateReport(data.report);
+      } else {
+        content.textContent = '';
+        radioLog(logsEl, 'Race Control', data.error || 'No report available — run a race first.', 'error');
+      }
+    });
+
+    $('btn-report-llm').addEventListener('click', async () => {
+      const content = showReportContainer();
+      content.textContent = 'Generating LLM analysis...';
+      $('btn-report-llm').disabled = true;
+      try {
+        const res = await fetch('/api/race/report/llm', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        if (data.ok) {
+          content.textContent = data.report;
+        } else {
+          content.textContent = 'LLM analysis failed: ' + (data.error || 'unknown error');
+        }
+      } catch (e) {
+        content.textContent = 'LLM analysis error: ' + e.message;
+      } finally {
+        $('btn-report-llm').disabled = false;
+      }
     });
 
     // --- NEWS AGENTS ---
@@ -1259,23 +1358,6 @@
       else { radioLog(newsLogsEl, 'Pit Wall', 'Deployment failed: ' + data.error, 'error'); }
     });
 
-    $('news-btn-demo').addEventListener('click', async () => {
-      const query = $('news-query').value.trim() || 'OpenAI GPT-5 launch';
-      const angles = Array.from(document.querySelectorAll('.news-angle:checked')).map(cb => cb.value);
-      const res = await fetch('/api/news/demo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, angles })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        radioLog(newsLogsEl, 'Pit Wall', 'DEMO: scouts deployed (mocked feeds + LLM)');
-        startNewsStream();
-      } else {
-        radioLog(newsLogsEl, 'Pit Wall', 'Demo failed: ' + data.error, 'error');
-      }
-    });
-
     $('news-btn-stop').addEventListener('click', async () => {
       await fetch('/api/news/stop', { method: 'POST' });
       SoundEngine.abortTone();
@@ -1290,6 +1372,12 @@
       if (rstate === 'running') startRaceStream();
       if (nstate === 'running') startNewsStream();
       if (data.news.results) renderNewsResults(data.news.results);
+      // Restore report buttons if a race already finished while we were away
+      if (rstate === 'done' && data.race.results && data.race.results.report) {
+        window._lastRaceReport = data.race.results.report;
+        $('btn-report-template').disabled = false;
+        $('btn-report-llm').disabled = false;
+      }
     });
   </script>
 </body>

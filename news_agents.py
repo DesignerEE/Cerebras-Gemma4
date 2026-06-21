@@ -26,6 +26,15 @@ from bs4 import BeautifulSoup
 from cerebras_race_client import CerebrasRaceClient
 
 
+# Tuned for Cerebras WSE-3 throughput (see CEREBRAS_SPEED_GUIDE.md).
+REASONING_EFFORT = "low"
+SERVICE_TIER = "priority"
+SCOUT_MAX_TOKENS = 1000
+SCOUT_TEMPERATURE = 0.2
+COMMANDER_MAX_TOKENS = 1200
+COMMANDER_TEMPERATURE = 0.3
+
+
 # RSS feeds grouped by scout angle. Mix of mainstream tech/business/news sources.
 RSS_FEEDS = {
     "latest breaking news": [
@@ -227,9 +236,10 @@ class NewsScout:
             )
             result = await self.client.complete(
                 prompt,
-                max_completion_tokens=600,
-                temperature=0.2,
-                reasoning_effort="low",
+                max_completion_tokens=SCOUT_MAX_TOKENS,
+                temperature=SCOUT_TEMPERATURE,
+                reasoning_effort=REASONING_EFFORT,
+                service_tier=SERVICE_TIER,
             )
             report.summary = result.text
 
@@ -290,9 +300,10 @@ class NewsCommander:
 
         result = await self.client.complete(
             prompt,
-            max_completion_tokens=1200,
-            temperature=0.3,
-            reasoning_effort="low",
+            max_completion_tokens=COMMANDER_MAX_TOKENS,
+            temperature=COMMANDER_TEMPERATURE,
+            reasoning_effort=REASONING_EFFORT,
+            service_tier=SERVICE_TIER,
         )
         report.synthesis = result.text
         report.elapsed = time.perf_counter() - start
