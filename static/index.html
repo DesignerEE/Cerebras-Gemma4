@@ -604,7 +604,9 @@
       <div class="status-dot"></div>
       <span id="state">idle</span> · <span id="message">Ready</span>
     </div>
+    <!-- SOUND DISABLED — paused while we focus on tests + visualization.
     <button class="sound-toggle" id="sound-toggle">🔇 Sound Off</button>
+    -->
   </header>
 
   <!-- RACING PANEL -->
@@ -769,6 +771,7 @@
             <label><input type="checkbox" class="news-angle" value="market and industry reaction" checked> Market</label>
           </div>
           <button id="news-btn-start" class="btn-start">Deploy Scouts</button>
+          <button id="news-btn-demo" class="btn-start" style="background: var(--panel); border-color: var(--accent); color: var(--accent);">Demo Run (No API)</button>
           <button id="news-btn-stop" class="btn-stop" disabled>Abort</button>
         </div>
 
@@ -835,13 +838,16 @@
       },
 
       async toggle() {
-        this.enabled = !this.enabled;
-        await this.init();
-        const btn = $('sound-toggle');
-        btn.textContent = this.enabled ? '🔊 Sound On' : '🔇 Sound Off';
-        btn.classList.toggle('on', this.enabled);
-        if (this.enabled) this.gearClick();
-        return this.enabled;
+        // SOUND DISABLED — paused while we focus on tests + visualization.
+        // Original implementation preserved below for quick restore:
+        // this.enabled = !this.enabled;
+        // await this.init();
+        // const btn = $('sound-toggle');
+        // btn.textContent = this.enabled ? '🔊 Sound On' : '🔇 Sound Off';
+        // btn.classList.toggle('on', this.enabled);
+        // if (this.enabled) this.gearClick();
+        // return this.enabled;
+        return false;
       },
 
       _now() { return this.ctx ? this.ctx.currentTime : 0; },
@@ -917,7 +923,9 @@
       }
     };
 
-    $('sound-toggle').addEventListener('click', () => SoundEngine.toggle());
+    // Sound toggle handler removed — button is hidden while sound work is paused.
+    // To restore: un-comment the <button> in the header and re-add:
+    //   $('sound-toggle').addEventListener('click', () => SoundEngine.toggle());
 
     // --- TABS ---
     document.querySelectorAll('.tab').forEach(tab => {
@@ -1249,6 +1257,23 @@
       const data = await res.json();
       if (data.ok) { radioLog(newsLogsEl, 'Pit Wall', 'Scouts deployed'); startNewsStream(); }
       else { radioLog(newsLogsEl, 'Pit Wall', 'Deployment failed: ' + data.error, 'error'); }
+    });
+
+    $('news-btn-demo').addEventListener('click', async () => {
+      const query = $('news-query').value.trim() || 'OpenAI GPT-5 launch';
+      const angles = Array.from(document.querySelectorAll('.news-angle:checked')).map(cb => cb.value);
+      const res = await fetch('/api/news/demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, angles })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        radioLog(newsLogsEl, 'Pit Wall', 'DEMO: scouts deployed (mocked feeds + LLM)');
+        startNewsStream();
+      } else {
+        radioLog(newsLogsEl, 'Pit Wall', 'Demo failed: ' + data.error, 'error');
+      }
     });
 
     $('news-btn-stop').addEventListener('click', async () => {
