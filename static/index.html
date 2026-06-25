@@ -3,535 +3,329 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cerebras F1 Racing & News Agents</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <title>HEADROOM REGEN DASHBOARD</title>
   <style>
     :root {
-      --bg: #07070a;
-      --panel: #0f1016;
-      --panel-2: #181920;
-      --accent: #00f0ff;
-      --accent-glow: rgba(0, 240, 255, 0.25);
-      --red: #ff2800;
-      --red-glow: rgba(255, 40, 0, 0.35);
-      --orange: #ff8000;
-      --green: #00d084;
-      --yellow: #ffb800;
-      --purple: #9d4edd;
-      --text: #f0f2f5;
-      --muted: #6b7280;
-      --border: #252732;
-      --font-display: 'Rajdhani', sans-serif;
-      --font-mono: 'Roboto Mono', monospace;
+      --bg: #0D0D0D;
+      --primary: #4ECDC4;
+      --active: #00FF41;
+      --highlight: #FFD700;
+      --compression: #9B59B6;
+      --muted: #AAAAAA;
+      --text: #F0F2F5;
+      --border: #333333;
+      --error: #FF2800;
     }
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      font-family: var(--font-mono);
+      font-family: Menlo, Monaco, Consolas, 'Roboto Mono', monospace;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.35;
-      background-image:
-        radial-gradient(circle at 20% 0%, rgba(0,240,255,0.05) 0%, transparent 40%),
-        radial-gradient(circle at 80% 100%, rgba(255,40,0,0.05) 0%, transparent 40%),
-        linear-gradient(0deg, transparent 24%, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.02) 26%, transparent 27%, transparent 74%, rgba(255,255,255,0.02) 75%, rgba(255,255,255,0.02) 76%, transparent 77%, transparent),
-        linear-gradient(90deg, transparent 24%, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.02) 26%, transparent 27%, transparent 74%, rgba(255,255,255,0.02) 75%, rgba(255,255,255,0.02) 76%, transparent 77%, transparent);
-      background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+      line-height: 1.4;
+      font-size: 13px;
     }
 
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    @keyframes flash { 0%,100% { opacity: 0.2; } 50% { opacity: 1; } }
-    @keyframes needle { from { transform: rotate(-135deg); } to { transform: rotate(135deg); } }
-    @keyframes carMove { from { left: 0%; } to { left: 95%; } }
-
     header {
-      padding: 0.9rem 1.2rem;
       border-bottom: 1px solid var(--border);
+      padding: 0.7rem 1rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      gap: 0.8rem;
-      background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 0.7rem;
+      gap: 0.6rem;
     }
     .brand h1 {
       margin: 0;
-      font-family: var(--font-display);
-      font-size: 1.5rem;
+      font-size: 1.15rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.12em;
-      color: var(--text);
+      color: var(--primary);
     }
-    .brand h1 span { color: var(--red); }
-    .f1-stripe {
-      width: 4px;
-      height: 28px;
-      background: linear-gradient(180deg, var(--red) 0%, var(--accent) 50%, var(--orange) 100%);
-      border-radius: 2px;
-    }
-    .tabs {
-      display: flex;
-      gap: 0.4rem;
-      background: var(--panel);
-      padding: 0.25rem;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-    }
+
+    .tabs { display: flex; gap: 0.4rem; }
     .tab {
-      padding: 0.45rem 1rem;
-      background: transparent;
-      border: none;
+      background: var(--bg);
+      border: 1px solid var(--border);
       color: var(--muted);
+      padding: 0.35rem 0.8rem;
+      font-family: inherit;
+      font-size: 0.8rem;
       cursor: pointer;
-      border-radius: 4px;
-      font-family: var(--font-display);
-      font-size: 0.85rem;
-      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      transition: all 0.2s ease;
+      letter-spacing: 0.06em;
     }
-    .tab:hover { color: var(--text); }
+    .tab:hover { color: var(--text); border-color: var(--primary); }
     .tab.active {
-      background: var(--red);
-      color: #fff;
-      box-shadow: 0 0 16px var(--red-glow);
+      background: var(--active);
+      color: #000;
+      border-color: var(--active);
+      font-weight: 700;
     }
 
     .status-pill {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.35rem 0.8rem;
-      background: var(--panel);
+      gap: 0.4rem;
       border: 1px solid var(--border);
-      border-radius: 20px;
-      font-family: var(--font-display);
-      font-size: 0.8rem;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-    }
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--muted);
-    }
-    .status-pill.running .status-dot { background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse 1.2s infinite; }
-    .status-pill.error .status-dot { background: var(--red); box-shadow: 0 0 10px var(--red); }
-    .status-pill.done .status-dot { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
-    .sound-toggle {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 0.35rem 0.8rem;
       color: var(--muted);
-      font-family: var(--font-display);
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-transform: uppercase;
     }
-    .sound-toggle:hover { border-color: var(--accent); color: var(--text); }
-    .sound-toggle.on { color: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+    .status-dot { width: 8px; height: 8px; background: var(--muted); }
+    .status-pill.running .status-dot { background: var(--active); }
+    .status-pill.done .status-dot { background: var(--primary); }
+    .status-pill.error .status-dot { background: var(--error); }
 
-    .panel-section { display: none; opacity: 0; transform: translateY(12px); transition: opacity 0.3s ease, transform 0.3s ease; }
-    .panel-section.active { display: block; opacity: 1; transform: translateY(0); animation: fadeIn 0.4s ease; }
+    .status-line {
+      border-bottom: 1px solid var(--border);
+      padding: 0.4rem 1rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .status-line .prompt { color: var(--primary); }
+    .status-line #message { color: var(--text); }
+
+    .panel-section { display: none; }
+    .panel-section.active { display: block; }
 
     .grid {
       display: grid;
       grid-template-columns: 340px 1fr;
-      gap: 1rem;
-      padding: 1rem;
+      gap: 1px;
+      padding: 1px;
+      background: var(--border);
+    }
+    .grid > aside, .grid > main {
+      background: var(--bg);
+      padding: 0.7rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
     }
 
     .panel {
-      background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      padding: 0.8rem;
+      background: var(--bg);
     }
     .panel-title {
-      font-family: var(--font-display);
-      font-size: 0.95rem;
+      margin: 0 0 0.6rem;
+      font-size: 0.85rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: var(--accent);
-      margin: 0 0 0.9rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .panel-title::before {
-      content: '';
-      width: 6px;
-      height: 18px;
-      background: var(--accent);
-      border-radius: 1px;
+      color: var(--primary);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.35rem;
     }
 
-    /* Gear selector */
-    .gear-box {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-    .gear {
-      aspect-ratio: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: var(--font-display);
-      font-size: 1.4rem;
-      font-weight: 700;
+    .rule { border: none; border-top: 1px solid var(--border); margin: 0.5rem 0; }
+    .rule-eq { color: var(--border); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0.4rem 0; }
+
+    /* Mode selector */
+    .mode-box { display: flex; gap: 0.4rem; }
+    .mode-btn {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
       color: var(--muted);
-      background: var(--panel-2);
-      border: 2px solid var(--border);
-      border-radius: 8px;
+      padding: 0.5rem 0.2rem;
+      font-family: inherit;
+      font-size: 0.85rem;
       cursor: pointer;
-      transition: all 0.15s ease;
-      position: relative;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .mode-btn:hover { border-color: var(--primary); color: var(--text); }
+    .mode-btn.active {
+      background: var(--active);
+      color: #000;
+      border-color: var(--active);
+      font-weight: 700;
+    }
+
+    /* Block gauges */
+    .block-gauge {
+      display: grid;
+      grid-template-columns: 50px 1fr auto;
+      gap: 0.6rem;
+      align-items: center;
+      margin-bottom: 0.35rem;
+      font-size: 0.85rem;
+    }
+    .block-gauge label {
+      text-transform: uppercase;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .block-gauge .bar {
+      color: var(--active);
+      white-space: pre;
       overflow: hidden;
     }
-    .gear::after {
-      content: attr(data-label);
-      position: absolute;
-      bottom: 4px;
-      font-size: 0.55rem;
-      font-weight: 600;
+    .block-gauge .value {
+      text-align: right;
+      color: var(--text);
+    }
+
+    /* Progress meter */
+    .progress-box { border: 1px solid var(--border); padding: 0.7rem; }
+    .progress-text {
+      color: var(--active);
+      white-space: pre;
+      font-size: 0.85rem;
+    }
+
+    /* Terminal log */
+    .terminal-log {
+      height: 220px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      padding: 0.5rem;
+      font-size: 0.8rem;
+      background: var(--bg);
+    }
+    .log-line { margin: 0.15rem 0; }
+    .log-time { color: var(--muted); margin-right: 0.4rem; }
+    .log-prefix { font-weight: 700; margin-right: 0.3rem; }
+    .prefix-ENG { color: var(--active); }
+    .prefix-SYS { color: var(--primary); }
+    .prefix-ERR { color: var(--error); }
+    .prefix-SCOUT { color: var(--highlight); }
+    .prefix-CMDR { color: var(--compression); }
+
+    /* Timing tower */
+    .tower-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .tower-table th {
+      text-align: left;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding: 0.35rem 0.3rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .tower-table td {
+      padding: 0.35rem 0.3rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .tower-table .num { text-align: right; }
+    .tower-row.fastest { color: var(--highlight); font-weight: 700; }
+    .tower-row.pos1 { color: var(--active); }
+
+    /* Sparkline */
+    .sparkline-wrap {
+      height: 180px;
+      border: 1px solid var(--border);
+      padding: 0.4rem;
+    }
+    #throughputChart { width: 100%; height: 100%; display: block; }
+
+    /* Strategy map / workers */
+    .strategy-map { display: flex; flex-direction: column; gap: 0.2rem; }
+    .worker-row {
+      display: grid;
+      grid-template-columns: 1fr 140px 80px;
+      gap: 0.6rem;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding: 0.35rem 0;
+      font-size: 0.8rem;
+    }
+    .worker-name { text-transform: uppercase; color: var(--primary); }
+    .worker-bar { color: var(--active); white-space: pre; overflow: hidden; }
+    .worker-status { text-align: right; }
+    .status-idle { color: var(--muted); }
+    .status-running { color: var(--highlight); }
+    .status-done { color: var(--active); }
+
+    /* Synthesis */
+    .synthesis-pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: inherit;
+      line-height: 1.55;
+      max-height: 480px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      padding: 0.7rem;
+      background: var(--bg);
+      font-size: 0.85rem;
+      margin: 0;
+    }
+
+    /* Scout cards */
+    .scout-card {
+      border: 1px solid var(--border);
+      padding: 0.7rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+    }
+    .scout-card h3 {
+      margin: 0 0 0.4rem;
+      color: var(--primary);
+      font-size: 0.85rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .gear:hover { border-color: var(--accent); color: var(--text); }
-    .gear.active {
-      color: #fff;
-      border-color: var(--accent);
-      box-shadow: 0 0 20px var(--accent-glow), inset 0 0 20px rgba(0,240,255,0.1);
-      background: linear-gradient(145deg, rgba(0,240,255,0.15) 0%, transparent 60%);
-    }
-    .gear.drs.active {
-      border-color: var(--purple);
-      color: #fff;
-      box-shadow: 0 0 24px rgba(157,78,221,0.4), inset 0 0 20px rgba(157,78,221,0.15);
-      background: linear-gradient(145deg, rgba(157,78,221,0.2) 0%, transparent 60%);
-    }
-
-    /* Gauges */
-    .gauge-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-    .gauge {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 0.8rem;
-      text-align: center;
-      position: relative;
-    }
-    .gauge svg { width: 100%; max-width: 160px; height: auto; }
-    .gauge-value {
-      font-family: var(--font-display);
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: var(--text);
-      margin-top: -0.4rem;
-    }
-    .gauge-label {
-      font-size: 0.65rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-top: 0.2rem;
-    }
-    .gauge-unit { font-size: 0.75rem; color: var(--muted); }
-
-    /* Race track */
-    .track-container {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      position: relative;
-    }
-    .track {
-      height: 50px;
-      background: linear-gradient(90deg, #15171e 0%, #1a1c24 50%, #15171e 100%);
-      border-radius: 25px;
-      border: 2px solid var(--border);
-      position: relative;
-      overflow: hidden;
-    }
-    .track-line {
-      position: absolute;
-      top: 50%;
-      left: 0; right: 0;
-      height: 2px;
-      background: repeating-linear-gradient(90deg, rgba(255,255,255,0.3) 0, rgba(255,255,255,0.3) 10px, transparent 10px, transparent 20px);
-      transform: translateY(-50%);
-    }
-    .track-sector {
-      position: absolute;
-      top: 0; bottom: 0;
-      width: 2px;
-      background: rgba(255,255,255,0.08);
-    }
-    .track-car {
-      position: absolute;
-      top: 50%;
-      left: 0%;
-      transform: translate(-50%, -50%);
-      font-size: 1.6rem;
-      filter: drop-shadow(0 0 8px var(--accent));
-      transition: left 0.3s ease-out;
-    }
-    .track-labels {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 0.4rem;
-      font-size: 0.65rem;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
-
-    /* Start lights */
-    .start-lights {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.85);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-    .start-lights.active { display: flex; }
-    .lights-row {
-      display: flex;
-      gap: 1rem;
-    }
-    .light {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: #331111;
-      border: 3px solid #552222;
-      box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-      transition: all 0.1s ease;
-    }
-    .light.on {
-      background: var(--red);
-      border-color: #ff5555;
-      box-shadow: 0 0 30px var(--red), inset 0 0 10px rgba(255,255,255,0.3);
-    }
-    .lights-text {
-      font-family: var(--font-display);
-      font-size: 1.2rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--text);
-    }
+    .source-list { margin: 0.3rem 0; padding-left: 1.2rem; }
+    .source-list li { margin-bottom: 0.3rem; }
+    .source-list a { color: var(--primary); }
 
     /* Forms */
     label {
       display: block;
-      font-family: var(--font-display);
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin: 0.7rem 0 0.25rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      margin: 0.6rem 0 0.2rem;
     }
     input, select, textarea {
       width: 100%;
-      padding: 0.5rem 0.6rem;
-      background: var(--panel-2);
+      background: var(--bg);
       border: 1px solid var(--border);
       color: var(--text);
-      border-radius: 6px;
-      font-family: var(--font-mono);
+      padding: 0.45rem;
+      font-family: inherit;
       font-size: 0.85rem;
-      transition: all 0.2s ease;
     }
     input:focus, select:focus, textarea:focus {
       outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(0,240,255,0.1);
+      border-color: var(--primary);
     }
     .row { display: flex; gap: 0.6rem; }
     .row > * { flex: 1; }
 
     button {
-      margin-top: 0.8rem;
       width: 100%;
-      padding: 0.65rem;
-      border: none;
-      border-radius: 6px;
-      font-family: var(--font-display);
-      font-weight: 700;
-      cursor: pointer;
-      text-transform: uppercase;
-      font-size: 0.85rem;
-      letter-spacing: 0.06em;
-      transition: all 0.2s ease;
-    }
-    .btn-start {
-      background: linear-gradient(180deg, var(--green) 0%, #00a86b 100%);
-      color: #000;
-      box-shadow: 0 4px 16px rgba(0,208,132,0.25);
-    }
-    .btn-stop {
-      background: linear-gradient(180deg, var(--red) 0%, #cc2000 100%);
-      color: #fff;
-      box-shadow: 0 4px 16px rgba(255,40,0,0.25);
-    }
-    button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
-    button:active:not(:disabled) { transform: translateY(0); }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
-
-    /* Radio log */
-    .radio-log {
-      height: 220px;
-      overflow-y: auto;
-      background: var(--panel-2);
+      margin-top: 0.5rem;
+      padding: 0.55rem;
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.6rem;
-      font-size: 0.75rem;
-      scroll-behavior: smooth;
-    }
-    .radio-line {
-      margin: 0.2rem 0;
-      padding: 0.25rem 0;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
-      animation: fadeIn 0.25s ease;
-    }
-    .radio-line .time { color: var(--muted); margin-right: 0.4rem; }
-    .radio-line .who { font-weight: 700; color: var(--accent); }
-    .radio-line .msg { color: var(--text); }
-    .radio-line.error .who { color: var(--red); }
-    .radio-line.warn .who { color: var(--yellow); }
-
-    /* Timing tower */
-    .tower {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-    .tower-row {
-      display: grid;
-      grid-template-columns: 32px 1fr 70px 70px 80px;
-      gap: 0.5rem;
-      align-items: center;
-      padding: 0.5rem 0.6rem;
-      background: var(--panel-2);
-      border-left: 3px solid transparent;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      animation: fadeIn 0.3s ease backwards;
-      transition: all 0.2s ease;
-    }
-    .tower-row:hover { background: rgba(255,255,255,0.04); }
-    .tower-row.pos1 { border-left-color: var(--yellow); }
-    .tower-row.pos2 { border-left-color: #c0c0c0; }
-    .tower-row.pos3 { border-left-color: #cd7f32; }
-    .tower-row.fastest { background: rgba(157,78,221,0.12); border-left-color: var(--purple); }
-    .tower-pos {
-      font-family: var(--font-display);
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text);
-      text-align: center;
-    }
-    .tower-name { font-weight: 700; color: var(--text); }
-    .tower-gap { color: var(--muted); text-align: right; }
-    .tower-value { text-align: right; color: var(--accent); font-weight: 600; }
-    .tower-unit { font-size: 0.65rem; color: var(--muted); }
-
-    /* Chart */
-    .chart-wrap { height: 220px; margin-top: 0.5rem; }
-
-    /* News strategy map */
-    .strategy-map {
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-      margin-bottom: 1rem;
-    }
-    .strategy-lane {
-      background: var(--panel-2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.7rem;
-      position: relative;
-      overflow: hidden;
-    }
-    .strategy-lane h4 {
-      margin: 0 0 0.4rem;
-      font-family: var(--font-display);
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      color: var(--accent);
-      display: flex;
-      justify-content: space-between;
-    }
-    .lane-track {
-      height: 10px;
       background: var(--bg);
-      border-radius: 5px;
-      position: relative;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
     }
-    .lane-progress {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, var(--accent), var(--green));
-      border-radius: 5px;
-      transition: width 0.5s ease;
-      box-shadow: 0 0 10px var(--accent-glow);
-    }
-    .lane-car {
-      position: absolute;
-      top: 50%;
-      left: 0%;
-      transform: translate(-50%, -50%);
-      font-size: 0.9rem;
-      transition: left 0.5s ease;
-    }
+    button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-start { border-color: var(--active); color: var(--active); }
+    .btn-start:hover:not(:disabled) { background: var(--active); color: #000; }
+    .btn-stop { border-color: var(--error); color: var(--error); }
+    .btn-stop:hover:not(:disabled) { background: var(--error); color: #fff; }
 
-    /* Synthesis */
-    .synthesis {
-      background: var(--panel-2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1rem;
-      white-space: pre-wrap;
-      font-size: 0.88rem;
-      line-height: 1.55;
-      max-height: 480px;
-      overflow-y: auto;
-      animation: fadeIn 0.5s ease;
-    }
-
-    /* Angle checkboxes */
     .angle-checkboxes {
       display: flex;
       flex-wrap: wrap;
@@ -540,93 +334,106 @@
     .angle-checkboxes label {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.3rem;
       margin: 0;
-      padding: 0.35rem 0.6rem;
-      background: var(--panel-2);
+      padding: 0.35rem 0.5rem;
       border: 1px solid var(--border);
-      border-radius: 20px;
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       color: var(--text);
       cursor: pointer;
-      transition: all 0.2s ease;
+      text-transform: none;
+      letter-spacing: 0;
     }
-    .angle-checkboxes label:hover { border-color: var(--accent); }
     .angle-checkboxes input { width: auto; }
     .angle-checkboxes label:has(input:checked) {
-      background: rgba(0,240,255,0.12);
-      border-color: var(--accent);
-      color: #fff;
+      background: var(--active);
+      color: #000;
+      border-color: var(--active);
     }
 
-    /* Loading spinner */
     .spinner {
-      width: 16px;
-      height: 16px;
+      width: 12px;
+      height: 12px;
       border: 2px solid rgba(255,255,255,0.2);
       border-top-color: currentColor;
-      border-radius: 50%;
       animation: spin 0.7s linear infinite;
       display: inline-block;
-      margin-right: 0.5rem;
+      margin-right: 0.4rem;
       vertical-align: middle;
     }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    .diffusion-counter {
+      margin-top: 0.5rem;
+      color: var(--compression);
+      font-size: 0.8rem;
+    }
+    .diffusion-bar {
+      margin-top: 0.2rem;
+      color: var(--compression);
+      font-size: 0.85rem;
+      white-space: pre;
+    }
+
+    /* Boot overlay */
+    #start-lights {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 1000;
+      display: none;
+      flex-direction: column;
+      padding: 2rem;
+      font-size: 0.9rem;
+      overflow-y: auto;
+    }
+    #start-lights.active { display: flex; }
+    .boot-line { margin: 0.1rem 0; }
+    .boot-ok { color: var(--active); }
 
     @media (max-width: 900px) {
       .grid { grid-template-columns: 1fr; }
-      .gauge-row { grid-template-columns: 1fr; }
+      .block-gauge { grid-template-columns: 45px 1fr auto; }
+      .worker-row { grid-template-columns: 1fr 100px 70px; }
     }
   </style>
 </head>
 <body>
-  <!-- Start lights overlay -->
-  <div id="start-lights" class="start-lights">
-    <div class="lights-row">
-      <div class="light" id="light-1"></div>
-      <div class="light" id="light-2"></div>
-      <div class="light" id="light-3"></div>
-      <div class="light" id="light-4"></div>
-      <div class="light" id="light-5"></div>
-    </div>
-    <div class="lights-text" id="lights-text">Prepare to race</div>
-  </div>
+  <!-- Boot overlay -->
+  <div id="start-lights"></div>
 
   <header>
-    <div class="brand">
-      <div class="f1-stripe"></div>
-      <h1>Cerebras <span>F1</span> Racing</h1>
-    </div>
+    <div class="brand"><h1>HEADROOM REGEN DASHBOARD</h1></div>
     <div class="tabs">
-      <button class="tab active" data-tab="racing">Race Control</button>
-      <button class="tab" data-tab="news">Pit Wall</button>
+      <button class="tab active" data-tab="racing">[RACE]</button>
+      <button class="tab" data-tab="news">[NEWS]</button>
     </div>
     <div class="status-pill" id="status-pill">
       <div class="status-dot"></div>
-      <span id="state">idle</span> · <span id="message">Ready</span>
+      <span id="state">idle</span>
     </div>
-    <!-- SOUND DISABLED — paused while we focus on tests + visualization.
-    <button class="sound-toggle" id="sound-toggle">🔇 Sound Off</button>
-    -->
   </header>
+  <div class="status-line">
+    <span class="prompt">user@cerebras-bench:~$</span> <span id="message">Ready</span>
+  </div>
 
   <!-- RACING PANEL -->
   <div id="racing-panel" class="panel-section active">
     <div class="grid">
       <aside>
-        <!-- Gear selector -->
         <div class="panel">
-          <div class="panel-title">Strategy Mode</div>
-          <div class="gear-box">
-            <div class="gear" data-mode="P" data-label="Pit" data-conc="0" data-tokens="0">P</div>
-            <div class="gear" data-mode="1" data-label="Eco" data-conc="8" data-tokens="250">1</div>
-            <div class="gear active" data-mode="2" data-label="Race" data-conc="16" data-tokens="1000">2</div>
-            <div class="gear" data-mode="3" data-label="Qualy" data-conc="24" data-tokens="1500">3</div>
-            <div class="gear drs" data-mode="DRS" data-label="Boost" data-conc="32" data-tokens="1000">DRS</div>
+          <div class="panel-title">MODE SELECTOR</div>
+          <div class="mode-box">
+            <button class="mode-btn" data-mode="P" data-conc="0" data-tokens="0">[P]</button>
+            <button class="mode-btn" data-mode="1" data-conc="8" data-tokens="250">[1]</button>
+            <button class="mode-btn active" data-mode="2" data-conc="16" data-tokens="1000">[2]</button>
+            <button class="mode-btn" data-mode="3" data-conc="24" data-tokens="1500">[3]</button>
+            <button class="mode-btn" data-mode="DRS" data-conc="32" data-tokens="1000">[DRS]</button>
           </div>
         </div>
 
         <div class="panel">
-          <div class="panel-title">Setup</div>
+          <div class="panel-title">SETUP</div>
           <label>Metric</label>
           <select id="metric">
             <option value="tok/s">Max tokens/sec</option>
@@ -647,95 +454,68 @@
           <input id="concurrency" type="text" value="8,16,24,32">
           <label>Max tokens</label>
           <input id="max_tokens" type="text" value="500,1000,1500">
-          <button id="btn-start" class="btn-start">Start Race</button>
-          <button id="btn-stop" class="btn-stop" disabled>Abort</button>
-          <button id="btn-report-template" class="btn-start" style="background: var(--panel); border-color: var(--accent); color: var(--accent);" disabled>Show Report</button>
-          <button id="btn-report-llm" class="btn-start" style="background: var(--panel); border-color: var(--accent); color: var(--accent);" disabled>LLM Analysis</button>
-          <button id="btn-diffusion-test" class="btn-start" style="background: var(--panel); border-color: var(--purple); color: var(--purple); margin-top: 8px;">Test DiffusionGemma4</button>
-          <div id="diffusion-result-race" class="synthesis" style="margin-top: 8px; display: none;"></div>
-        </div>
-
-        <div id="race-report-container" class="panel" style="display: none; margin-top: 1rem;">
-          <div class="panel-title">Race Report</div>
-          <div id="race-report-content" style="white-space: pre-wrap; line-height: 1.5;"></div>
+          <button id="btn-start" class="btn-start">START RACE</button>
+          <button id="btn-stop" class="btn-stop" disabled>ABORT</button>
+          <button id="btn-report-template" class="btn-start" disabled>SHOW REPORT</button>
+          <button id="btn-report-llm" class="btn-start" disabled>LLM ANALYSIS</button>
         </div>
 
         <div class="panel">
-          <div class="panel-title">Team Radio</div>
-          <div id="logs" class="radio-log"></div>
+          <div class="panel-title">DIFFUSIONGEMMA4</div>
+          <button id="btn-diffusion-test" class="btn-start">TEST DIFFUSIONGEMMA4</button>
+          <div id="diffusion-counter" class="diffusion-counter">0 TOK @ 0 tok/s</div>
+          <div id="diffusion-bar" class="diffusion-bar">[░░░░░░░░░░░░░░░░░░░░]</div>
+          <div id="diffusion-result-race" class="synthesis-pre" style="display:none;margin-top:0.5rem;"></div>
+        </div>
+
+        <div id="race-report-container" class="panel" style="display:none;">
+          <div class="panel-title">RACE REPORT</div>
+          <div id="race-report-content" class="synthesis-pre"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">TERMINAL LOG</div>
+          <div id="logs" class="terminal-log"></div>
         </div>
       </aside>
 
       <main>
-        <!-- Gauges -->
-        <div class="gauge-row">
-          <div class="gauge">
-            <svg viewBox="0 0 160 100">
-              <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="#252732" stroke-width="12" stroke-linecap="round"/>
-              <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="url(#gradReq)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 377" id="gauge-req-arc"/>
-              <defs>
-                <linearGradient id="gradReq" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00d084"/><stop offset="70%" stop-color="#ffb800"/><stop offset="100%" stop-color="#ff2800"/></linearGradient>
-              </defs>
-              <line x1="80" y1="90" x2="80" y2="45" stroke="#00f0ff" stroke-width="3" stroke-linecap="round" id="gauge-req-needle" transform="rotate(-135 80 90)"/>
-              <circle cx="80" cy="90" r="4" fill="#00f0ff"/>
-            </svg>
-            <div class="gauge-value"><span id="gauge-req-val">0</span><span class="gauge-unit"> req/s</span></div>
-            <div class="gauge-label">RPM — Request Rate</div>
+        <div class="panel">
+          <div class="panel-title">LIVE GAUGES</div>
+          <div class="block-gauge">
+            <label>REQ/S</label>
+            <span class="bar" id="gauge-req-bar"></span>
+            <span class="value" id="gauge-req-val">0.00/16.67</span>
           </div>
-          <div class="gauge">
-            <svg viewBox="0 0 160 100">
-              <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="#252732" stroke-width="12" stroke-linecap="round"/>
-              <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="url(#gradTok)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 377" id="gauge-tok-arc"/>
-              <defs>
-                <linearGradient id="gradTok" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00d084"/><stop offset="60%" stop-color="#00f0ff"/><stop offset="100%" stop-color="#9d4edd"/></linearGradient>
-              </defs>
-              <line x1="80" y1="90" x2="80" y2="45" stroke="#00f0ff" stroke-width="3" stroke-linecap="round" id="gauge-tok-needle" transform="rotate(-135 80 90)"/>
-              <circle cx="80" cy="90" r="4" fill="#00f0ff"/>
-            </svg>
-            <div class="gauge-value"><span id="gauge-tok-val">0</span><span class="gauge-unit"> tok/s</span></div>
-            <div class="gauge-label">Speed — Token Rate</div>
+          <div class="block-gauge">
+            <label>TOK/S</label>
+            <span class="bar" id="gauge-tok-bar"></span>
+            <span class="value" id="gauge-tok-val">0/16667</span>
           </div>
-          <div class="gauge">
-            <svg viewBox="0 0 160 100">
-              <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="#252732" stroke-width="12" stroke-linecap="round"/>
-              <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="url(#gradLat)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 377" id="gauge-lat-arc"/>
-              <defs>
-                <linearGradient id="gradLat" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00d084"/><stop offset="50%" stop-color="#ffb800"/><stop offset="100%" stop-color="#ff2800"/></linearGradient>
-              </defs>
-              <line x1="80" y1="90" x2="80" y2="45" stroke="#ff2800" stroke-width="3" stroke-linecap="round" id="gauge-lat-needle" transform="rotate(-135 80 90)"/>
-              <circle cx="80" cy="90" r="4" fill="#ff2800"/>
-            </svg>
-            <div class="gauge-value"><span id="gauge-lat-val">0</span><span class="gauge-unit"> s</span></div>
-            <div class="gauge-label">Turbo — Latency</div>
+          <div class="block-gauge">
+            <label>LAT</label>
+            <span class="bar" id="gauge-lat-bar"></span>
+            <span class="value" id="gauge-lat-val">0.000s</span>
           </div>
         </div>
 
-        <!-- Race track -->
-        <div class="track-container">
-          <div class="track">
-            <div class="track-line"></div>
-            <div class="track-sector" style="left:25%"></div>
-            <div class="track-sector" style="left:50%"></div>
-            <div class="track-sector" style="left:75%"></div>
-            <div class="track-car" id="track-car">🏎️</div>
-          </div>
-          <div class="track-labels">
-            <span>Start</span>
-            <span>Sector 1</span>
-            <span>Sector 2</span>
-            <span>Sector 3</span>
-            <span>Finish</span>
-          </div>
+        <div class="progress-box">
+          <div class="progress-text" id="race-progress">[>                     ] 0%</div>
         </div>
 
         <div class="panel">
-          <div class="panel-title">Live Telemetry</div>
-          <div class="chart-wrap"><canvas id="throughputChart"></canvas></div>
+          <div class="panel-title">SPARKLINE HISTOGRAM</div>
+          <div class="sparkline-wrap"><canvas id="throughputChart"></canvas></div>
         </div>
 
         <div class="panel">
-          <div class="panel-title">Timing Tower</div>
-          <div id="timing-tower" class="tower"></div>
+          <div class="panel-title">TIMING TOWER</div>
+          <table class="tower-table">
+            <thead>
+              <tr><th>#</th><th>CONFIG</th><th class="num">REQ/S</th><th class="num">TOK/S</th><th class="num">LATENCY</th></tr>
+            </thead>
+            <tbody id="timing-tower"></tbody>
+          </table>
         </div>
       </main>
     </div>
@@ -746,29 +526,12 @@
     <div class="grid">
       <aside>
         <div class="panel">
-          <div class="panel-title">Strategy Map</div>
-          <div class="strategy-map">
-            <div class="strategy-lane">
-              <h4>Breaking News Scout <span id="lane-0-pct">0%</span></h4>
-              <div class="lane-track"><div class="lane-progress" id="lane-0-bar"></div><div class="lane-car" id="lane-0-car">🏎️</div></div>
-            </div>
-            <div class="strategy-lane">
-              <h4>Technical Scout <span id="lane-1-pct">0%</span></h4>
-              <div class="lane-track"><div class="lane-progress" id="lane-1-bar"></div><div class="lane-car" id="lane-1-car">🏎️</div></div>
-            </div>
-            <div class="strategy-lane">
-              <h4>Market Scout <span id="lane-2-pct">0%</span></h4>
-              <div class="lane-track"><div class="lane-progress" id="lane-2-bar"></div><div class="lane-car" id="lane-2-car">🏎️</div></div>
-            </div>
-            <div class="strategy-lane">
-              <h4>Commander <span id="lane-3-pct">0%</span></h4>
-              <div class="lane-track"><div class="lane-progress" id="lane-3-bar"></div><div class="lane-car" id="lane-3-car">🏁</div></div>
-            </div>
-          </div>
+          <div class="panel-title">STRATEGY MAP</div>
+          <div class="strategy-map" id="strategy-map"></div>
         </div>
 
         <div class="panel">
-          <div class="panel-title">Search Query</div>
+          <div class="panel-title">SEARCH QUERY</div>
           <input id="news-query" type="text" value="AI regulation" placeholder="e.g. AI regulation">
           <label>Scout angles</label>
           <div class="angle-checkboxes">
@@ -776,25 +539,25 @@
             <label><input type="checkbox" class="news-angle" value="technical details analysis" checked> Technical</label>
             <label><input type="checkbox" class="news-angle" value="market and industry reaction" checked> Market</label>
           </div>
-          <button id="news-btn-start" class="btn-start">Deploy Scouts</button>
-          <button id="news-btn-stop" class="btn-stop" disabled>Abort</button>
-          <button id="news-btn-diffusion" class="btn-start" style="background: var(--panel); border-color: var(--purple); color: var(--purple); margin-top: 8px;">Test DiffusionGemma4</button>
-          <div id="diffusion-result-news" class="synthesis" style="margin-top: 8px; display: none;"></div>
+          <button id="news-btn-start" class="btn-start">DEPLOY SCOUTS</button>
+          <button id="news-btn-stop" class="btn-stop" disabled>ABORT</button>
+          <button id="news-btn-diffusion" class="btn-start">TEST DIFFUSIONGEMMA4</button>
+          <div id="diffusion-result-news" class="synthesis-pre" style="display:none;margin-top:0.5rem;"></div>
         </div>
 
         <div class="panel">
-          <div class="panel-title">Pit Wall Radio</div>
-          <div id="news-logs" class="radio-log"></div>
+          <div class="panel-title">PIT WALL LOG</div>
+          <div id="news-logs" class="terminal-log"></div>
         </div>
       </aside>
 
       <main>
         <div class="panel">
-          <div class="panel-title">Commander Synthesis</div>
-          <div id="news-synthesis" class="synthesis">Enter a query and deploy scouts.</div>
+          <div class="panel-title">COMMANDER SYNTHESIS</div>
+          <pre id="news-synthesis" class="synthesis-pre">Enter a query and deploy scouts.</pre>
         </div>
         <div class="panel">
-          <div class="panel-title">Scout Reports</div>
+          <div class="panel-title">SCOUT REPORTS</div>
           <div id="news-scouts"></div>
         </div>
       </main>
@@ -803,6 +566,147 @@
 
   <script>
     const $ = id => document.getElementById(id);
+
+    // --- HELPERS ---
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderBlockBar(value, max, width=20) {
+      const pct = max > 0 ? Math.max(0, Math.min(1, (value || 0) / max)) : 0;
+      const filled = Math.round(pct * width);
+      const empty = Math.max(0, width - filled);
+      return '[' + '█'.repeat(filled) + '░'.repeat(empty) + ']';
+    }
+
+    function terminalLog(el, prefix, text, level='info') {
+      if (!el) return;
+      const line = document.createElement('div');
+      line.className = 'log-line ' + level;
+      const ts = new Date().toTimeString().slice(0, 8);
+      const cls = 'prefix-' + prefix.replace(/[\[\]]/g, '');
+      line.innerHTML = `<span class="log-time">${ts}</span><span class="log-prefix ${cls}">${prefix}</span> <span class="log-text">${escapeHtml(text)}</span>`;
+      el.appendChild(line);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function renderSparkline(canvas, values1, values2, color1, color2) {
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.floor(rect.width);
+      const h = Math.floor(rect.height);
+      if (w <= 0 || h <= 0) return;
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      const data1 = values1 || [];
+      const data2 = values2 || [];
+      const n = Math.max(data1.length, data2.length);
+      if (n === 0) return;
+      const maxVal = Math.max(1, ...data1, ...data2);
+      const slot = Math.floor(w / n);
+      const barW = Math.max(1, Math.floor(slot * 0.45));
+      const gap = Math.max(1, Math.floor(slot * 0.1));
+      const chartH = h - 4;
+
+      // grid
+      ctx.fillStyle = 'rgba(51,51,51,0.6)';
+      for (let i = 1; i < 4; i++) {
+        const y = (h / 4) * i;
+        ctx.fillRect(0, y, w, 1);
+      }
+
+      for (let i = 0; i < n; i++) {
+        const x = i * (barW * 2 + gap * 2) + gap;
+        const v1 = data1[i] || 0;
+        const v2 = data2[i] || 0;
+        const h1 = Math.max(1, (v1 / maxVal) * chartH);
+        const h2 = Math.max(1, (v2 / maxVal) * chartH);
+        ctx.fillStyle = color2 || '#9B59B6';
+        ctx.fillRect(x + barW + gap, h - h2, barW, h2);
+        ctx.fillStyle = color1 || '#00FF41';
+        ctx.fillRect(x, h - h1, barW, h1);
+      }
+    }
+
+    function renderTimingTower(summaries) {
+      towerEl.innerHTML = '';
+      if (!summaries) return;
+      summaries.forEach((s, i) => addTowerRow(i + 1, s));
+    }
+
+    function renderStrategyMap(state) {
+      const map = state || { workers: [
+        { name: 'Breaking News Scout', pct: 0, status: 'IDLE' },
+        { name: 'Technical Scout', pct: 0, status: 'IDLE' },
+        { name: 'Market Scout', pct: 0, status: 'IDLE' },
+        { name: 'Commander', pct: 0, status: 'IDLE' }
+      ]};
+      const container = $('strategy-map');
+      if (!container) return;
+      container.innerHTML = '';
+      map.workers.forEach((w, i) => {
+        const row = document.createElement('div');
+        row.className = 'worker-row';
+        row.id = 'worker-' + i;
+        row.innerHTML = `
+          <div class="worker-name">${escapeHtml(w.name)}</div>
+          <div class="worker-bar" id="lane-${i}-bar">${renderBlockBar(w.pct, 100, 16)}</div>
+          <div class="worker-status" id="lane-${i}-pct"><span class="status-${w.status.toLowerCase()}">[${w.status}]</span></div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function renderBootSequence() {
+      return new Promise(resolve => {
+        const overlay = $('start-lights');
+        overlay.classList.add('active');
+        overlay.innerHTML = '';
+        const lines = [
+          'BOOTING HEADROOM REGEN DASHBOARD...',
+          'MOUNT /dev/cerebras0...',
+          'LOAD KERNEL MODULES glml-c0...',
+          'INIT NEUROMORPHIC ROUTER...',
+          'MOUNT /opt/cfire...',
+          'CALIBRATE HEADROOM REGEN...',
+          'START TELEMETRY DAEMON...',
+          'START NEWS SCOUT BUS...',
+          'START DIFFUSIONGEMMA PERIPHERAL...',
+          'OK'
+        ];
+        let i = 0;
+        function next() {
+          if (i >= lines.length) {
+            const prompt = document.createElement('div');
+            prompt.className = 'boot-line';
+            prompt.innerHTML = '<span class="boot-ok">READY</span> user@cerebras-bench:~$ _';
+            overlay.appendChild(prompt);
+            overlay.scrollTop = overlay.scrollHeight;
+            setTimeout(() => {
+              overlay.classList.remove('active');
+              overlay.innerHTML = '';
+              resolve();
+            }, 600);
+            return;
+          }
+          const line = document.createElement('div');
+          line.className = 'boot-line';
+          const ok = lines[i].endsWith('...') ? ' <span class="boot-ok">OK</span>' : '';
+          line.innerHTML = `[${new Date().toTimeString().slice(0,8)}] ${lines[i]}${ok}`;
+          overlay.appendChild(line);
+          overlay.scrollTop = overlay.scrollHeight;
+          i++;
+          setTimeout(next, 120);
+        }
+        next();
+      });
+    }
 
     // --- SOUND ENGINE ---
     const SoundEngine = {
@@ -818,10 +722,7 @@
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         }
         if (this.ctx.state === 'suspended') await this.ctx.resume();
-        // Preload generated WAV files
         if (Object.keys(this.samples).length === 0) {
-          // Cache-busting query ensures fresh MP3s are fetched after regeneration
-          // (browser would otherwise serve previously cached versions indefinitely)
           const SFX_VER = 'physics2';
           const files = {
             gear: `/static/sounds/gear_click.mp3?v=${SFX_VER}`,
@@ -845,15 +746,6 @@
       },
 
       async toggle() {
-        // SOUND DISABLED — paused while we focus on tests + visualization.
-        // Original implementation preserved below for quick restore:
-        // this.enabled = !this.enabled;
-        // await this.init();
-        // const btn = $('sound-toggle');
-        // btn.textContent = this.enabled ? '🔊 Sound On' : '🔇 Sound Off';
-        // btn.classList.toggle('on', this.enabled);
-        // if (this.enabled) this.gearClick();
-        // return this.enabled;
         return false;
       },
 
@@ -930,10 +822,6 @@
       }
     };
 
-    // Sound toggle handler removed — button is hidden while sound work is paused.
-    // To restore: un-comment the <button> in the header and re-add:
-    //   $('sound-toggle').addEventListener('click', () => SoundEngine.toggle());
-
     // --- TABS ---
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -946,11 +834,12 @@
 
     function radioLog(el, who, text, type='info') {
       SoundEngine.radioClick();
-      const line = document.createElement('div');
-      line.className = `radio-line ${type}`;
-      line.innerHTML = `<span class="time">${new Date().toLocaleTimeString()}</span><span class="who">${who}:</span> <span class="msg">${text}</span>`;
-      el.appendChild(line);
-      el.scrollTop = el.scrollHeight;
+      let prefix = '[SYS]';
+      if (who === 'Engineer') prefix = '[ENG]';
+      else if (who === 'Scout') prefix = '[SCOUT]';
+      else if (who === 'Commander') prefix = '[CMDR]';
+      if (type === 'error' || who === 'Driver') prefix = '[ERR]';
+      terminalLog(el, prefix, text, type);
     }
 
     function setState(state, message) {
@@ -977,87 +866,21 @@
 
     // --- GAUGES ---
     function setGauge(idPrefix, value, max, inverse=false) {
-      const clamped = Math.max(0, Math.min(value, max));
+      const clamped = Math.max(0, Math.min(value || 0, max));
       const pct = inverse ? (1 - clamped / max) : (clamped / max);
-      const angle = -135 + pct * 270;
-      $(idPrefix + '-needle').setAttribute('transform', `rotate(${angle} 80 90)`);
-      $(idPrefix + '-arc').setAttribute('stroke-dasharray', `${pct * 377} 377`);
-      $(idPrefix + '-val').textContent = inverse ? clamped.toFixed(3) : clamped.toFixed(inverse ? 0 : (value > 1000 ? 0 : 1));
-    }
-
-    // --- START LIGHTS ---
-    async function runStartLights() {
-      const overlay = $('start-lights');
-      overlay.classList.add('active');
-      $('lights-text').textContent = 'Prepare to race';
-      SoundEngine.startEngine();
-      for (let i = 1; i <= 5; i++) {
-        await new Promise(r => setTimeout(r, 400));
-        $(`light-${i}`).classList.add('on');
-        SoundEngine.lightBeep();
-      }
-      await new Promise(r => setTimeout(r, 700));
-      for (let i = 1; i <= 5; i++) $(`light-${i}`).classList.remove('on');
-      $('lights-text').textContent = 'GO GO GO!';
-      SoundEngine.goBeep();
-      SoundEngine.setEngineIntensity(0.6);
-      await new Promise(r => setTimeout(r, 500));
-      overlay.classList.remove('active');
-    }
-
-    // --- GEAR SELECTOR ---
-    const GEAR_PRESETS = {
-      'P': { conc: '0', tokens: '0', label: 'Pit' },
-      '1': { conc: '8', tokens: '250', label: 'Eco' },
-      '2': { conc: '16', tokens: '1000', label: 'Race' },
-      '3': { conc: '24', tokens: '1500', label: 'Qualy' },
-      'DRS': { conc: '32', tokens: '1000', label: 'Boost' },
-    };
-    document.querySelectorAll('.gear').forEach(gear => {
-      gear.addEventListener('click', () => {
-        document.querySelectorAll('.gear').forEach(g => g.classList.remove('active'));
-        gear.classList.add('active');
-        SoundEngine.gearClick();
-        const mode = gear.dataset.mode;
-        if (mode !== 'P') {
-          $('concurrency').value = gear.dataset.conc;
-          $('max_tokens').value = gear.dataset.tokens;
+      const barEl = $(idPrefix + '-bar');
+      const valEl = $(idPrefix + '-val');
+      if (barEl) barEl.textContent = renderBlockBar(pct * max, max, 20);
+      if (valEl) {
+        if (idPrefix === 'gauge-lat') {
+          valEl.textContent = clamped.toFixed(3) + 's';
+        } else if (idPrefix === 'gauge-tok') {
+          valEl.textContent = Math.round(clamped).toLocaleString() + '/' + Math.round(max).toLocaleString();
+        } else {
+          valEl.textContent = clamped.toFixed(2) + '/' + max.toFixed(2);
         }
-        radioLog($('logs'), 'Engineer', `Strategy mode ${mode} engaged — ${GEAR_PRESETS[mode].label}`);
-      });
-    });
-
-    // --- RACE TRACK ---
-    function setTrackProgress(pct) {
-      $('track-car').style.left = Math.max(0, Math.min(95, pct)) + '%';
-    }
-
-    // --- RACING ---
-    const logsEl = $('logs');
-    const towerEl = $('timing-tower');
-    let raceEventSource = null;
-    let diffusionEventSource = null;
-    let requestTimes = [];
-    let raceStartTime = 0;
-
-    const throughputChart = new Chart($('throughputChart'), {
-      type: 'line',
-      data: { labels: [], datasets: [
-        { label: 'Req/s', data: [], borderColor: '#ff2800', backgroundColor: 'rgba(255,40,0,0.1)', tension: 0.35, pointRadius: 0, fill: true },
-        { label: 'Tok/s ÷100', data: [], borderColor: '#00f0ff', backgroundColor: 'rgba(0,240,255,0.1)', tension: 0.35, pointRadius: 0, fill: true }
-      ]},
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 300 },
-        interaction: { mode: 'index', intersect: false },
-        scales: {
-          x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280', font: { family: 'Roboto Mono' } } },
-          y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280', font: { family: 'Roboto Mono' } } }
-        },
-        plugins: { legend: { labels: { color: '#f0f2f5', font: { family: 'Rajdhani' } } } }
       }
-    });
+    }
 
     function updateGauges(req, tok, lat) {
       setGauge('gauge-req', req || 0, 16.67);
@@ -1071,12 +894,11 @@
       stopGaugePulse();
       gaugePulsing = true;
       const start = Date.now();
-      const period = 1200; // ms per full sweep
+      const period = 1200;
       gaugePulseInterval = setInterval(() => {
         if (!gaugePulsing) return;
-        const sweep = (Math.sin(((Date.now() - start) / period) * Math.PI * 2) + 1) / 2; // 0..1
+        const sweep = (Math.sin(((Date.now() - start) / period) * Math.PI * 2) + 1) / 2;
         updateGauges(sweep * 16.67, sweep * 16667, (1 - sweep) * 3);
-        // Overlay a testing label on the gauges while pulsing
         $('gauge-req-val').textContent = label;
         $('gauge-tok-val').textContent = label;
         $('gauge-lat-val').textContent = label;
@@ -1090,17 +912,70 @@
       }
     }
 
+    // --- BOOT SEQUENCE ---
+    async function runStartLights() {
+      SoundEngine.startEngine();
+      await renderBootSequence();
+      SoundEngine.goBeep();
+      SoundEngine.setEngineIntensity(0.6);
+    }
+
+    // --- MODE SELECTOR ---
+    const GEAR_PRESETS = {
+      'P': { conc: '0', tokens: '0', label: 'Pit' },
+      '1': { conc: '8', tokens: '250', label: 'Eco' },
+      '2': { conc: '16', tokens: '1000', label: 'Race' },
+      '3': { conc: '24', tokens: '1500', label: 'Qualy' },
+      'DRS': { conc: '32', tokens: '1000', label: 'Boost' },
+    };
+    document.querySelectorAll('.mode-btn').forEach(gear => {
+      gear.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(g => g.classList.remove('active'));
+        gear.classList.add('active');
+        SoundEngine.gearClick();
+        const mode = gear.dataset.mode;
+        if (mode !== 'P') {
+          $('concurrency').value = gear.dataset.conc;
+          $('max_tokens').value = gear.dataset.tokens;
+        }
+        radioLog($('logs'), 'Engineer', `Strategy mode ${mode} engaged — ${GEAR_PRESETS[mode].label}`);
+      });
+    });
+
+    // --- PROGRESS METER ---
+    function setTrackProgress(pct) {
+      const el = $('race-progress');
+      if (!el) return;
+      const p = Math.max(0, Math.min(100, pct));
+      const width = 30;
+      const filled = Math.round(p / 100 * width);
+      const arrow = filled < width ? '>' : '';
+      const bar = '[' + '='.repeat(filled) + arrow + ' '.repeat(Math.max(0, width - filled - (arrow ? 1 : 0))) + ']';
+      el.textContent = `${bar} ${p.toFixed(0)}%`;
+    }
+
+    // --- RACING ---
+    const logsEl = $('logs');
+    const towerEl = $('timing-tower');
+    let raceEventSource = null;
+    let diffusionEventSource = null;
+    let requestTimes = [];
+    let raceStartTime = 0;
+
+    const labels = [];
+    const reqData = [];
+    const tokData = [];
+
     function addTowerRow(pos, summary, fastest=false) {
       const cfg = summary.config;
-      const row = document.createElement('div');
-      row.className = `tower-row pos${pos} ${fastest ? 'fastest' : ''}`;
-      row.style.animationDelay = (pos * 0.05) + 's';
+      const row = document.createElement('tr');
+      row.className = 'tower-row ' + (pos === 1 ? 'pos1 ' : '') + (fastest ? 'fastest' : '');
       row.innerHTML = `
-        <div class="tower-pos">${pos}</div>
-        <div class="tower-name">${cfg.name}</div>
-        <div class="tower-value">${summary.req_per_sec.toFixed(2)}</div>
-        <div class="tower-value">${summary.tok_per_sec.toFixed(0)}</div>
-        <div class="tower-gap">${summary.avg_latency.toFixed(3)}s</div>
+        <td class="num">${pos || 1}</td>
+        <td>${escapeHtml(cfg.name)}</td>
+        <td class="num">${summary.req_per_sec.toFixed(2)}</td>
+        <td class="num">${summary.tok_per_sec.toFixed(0)}</td>
+        <td class="num">${summary.avg_latency.toFixed(3)}s</td>
       `;
       towerEl.appendChild(row);
     }
@@ -1130,8 +1005,7 @@
         if (msg.error) radioLog(logsEl, 'Driver', `Error on lap ${msg.idx}: ${msg.error}`, 'error');
         updateRollingTelemetry();
       } else if (msg.type === 'sweep_complete') {
-        towerEl.innerHTML = '';
-        msg.summaries.forEach((s, i) => addTowerRow(i + 1, s));
+        renderTimingTower(msg.summaries);
         radioLog(logsEl, 'Engineer', 'Scout sweep complete');
       } else if (msg.type === 'best_config') {
         radioLog(logsEl, 'Engineer', `Fastest setup: ${msg.summary.config.name} — ${msg.summary.tok_per_sec.toFixed(0)} tok/s`);
@@ -1161,26 +1035,26 @@
       const intensity = Math.min(1, Math.max(0.2, reqPerSec / 16.67));
       SoundEngine.setEngineIntensity(intensity);
       const elapsed = now - raceStartTime;
-      if (raceStartTime && elapsed > 0) setTrackProgress(Math.min(95, (recent.length / parseInt($('race_requests').value)) * 100));
+      if (raceStartTime && elapsed > 0) setTrackProgress(Math.min(100, (recent.length / parseInt($('race_requests').value)) * 100));
 
-      throughputChart.data.labels.push(now.toFixed(1));
-      throughputChart.data.datasets[0].data.push(reqPerSec);
-      throughputChart.data.datasets[1].data.push(tokPerSec / 100);
-      if (throughputChart.data.labels.length > 60) {
-        throughputChart.data.labels.shift();
-        throughputChart.data.datasets[0].data.shift();
-        throughputChart.data.datasets[1].data.shift();
+      labels.push(now.toFixed(1));
+      reqData.push(reqPerSec);
+      tokData.push(tokPerSec / 100);
+      if (labels.length > 60) {
+        labels.shift();
+        reqData.shift();
+        tokData.shift();
       }
-      throughputChart.update();
+      renderSparkline($('throughputChart'), reqData, tokData, '#00FF41', '#9B59B6');
     }
 
     $('btn-start').addEventListener('click', async () => {
       towerEl.innerHTML = '';
       requestTimes = [];
       raceStartTime = Date.now() / 1000;
-      throughputChart.data.labels = [];
-      throughputChart.data.datasets.forEach(d => d.data = []);
-      throughputChart.update();
+      labels.length = 0;
+      reqData.length = 0;
+      tokData.length = 0;
       updateGauges(0, 0, 0);
       setTrackProgress(0);
       await runStartLights();
@@ -1301,9 +1175,13 @@
     const laneMap = { 'latest breaking news': 0, 'technical details analysis': 1, 'market and industry reaction': 2 };
 
     function setLaneProgress(lane, pct) {
-      $(`lane-${lane}-bar`).style.width = pct + '%';
-      $(`lane-${lane}-car`).style.left = pct + '%';
-      $(`lane-${lane}-pct`).textContent = pct.toFixed(0) + '%';
+      const barEl = $(`lane-${lane}-bar`);
+      if (barEl) barEl.textContent = renderBlockBar(pct, 100, 16);
+      const pctEl = $(`lane-${lane}-pct`);
+      if (pctEl) {
+        const status = pct >= 100 ? 'DONE' : pct > 0 ? 'RUNNING' : 'IDLE';
+        pctEl.innerHTML = `<span class="status-${status.toLowerCase()}">[${status}]</span>`;
+      }
     }
 
     function renderNewsResults(results) {
@@ -1315,15 +1193,14 @@
         results.scouts.forEach((s, idx) => {
           const div = document.createElement('div');
           div.className = 'scout-card';
-          div.style.animationDelay = (idx * 0.1) + 's';
           let sourcesHtml = '<ul class="source-list">';
           (s.sources || []).forEach(src => {
-            sourcesHtml += `<li><a href="${src.url}" target="_blank">${src.title}</a> — ${src.snippet ? src.snippet.slice(0, 100) + '...' : ''}</li>`;
+            sourcesHtml += `<li><a href="${src.url}" target="_blank">${escapeHtml(src.title)}</a> — ${src.snippet ? escapeHtml(src.snippet.slice(0, 100)) + '...' : ''}</li>`;
           });
           sourcesHtml += '</ul>';
           div.innerHTML = `
-            <h3>${s.angle}${s.error ? ' ⚠️ ' + s.error : ''}</h3>
-            <p><strong>Summary:</strong> ${s.summary || 'N/A'}</p>
+            <h3>${escapeHtml(s.angle)}${s.error ? ' ⚠️ ' + escapeHtml(s.error) : ''}</h3>
+            <p><strong>Summary:</strong> ${escapeHtml(s.summary || 'N/A')}</p>
             <p><strong>Sources:</strong></p>
             ${sourcesHtml}
           `;
@@ -1401,10 +1278,8 @@
         if (data.ok) {
           SoundEngine.abortTone();
           radioLog(newsLogsEl, 'Pit Wall', 'Abort called');
-          // Reset the Deploy Scouts button immediately so it never stays stuck spinning
           setButtonLoading($('news-btn-start'), false, 'Deploy Scouts');
           $('news-btn-start').disabled = false;
-          // Reset the Abort button back to its normal label (kept disabled until next run)
           setButtonLoading($('news-btn-stop'), false, 'Abort');
           $('news-btn-stop').disabled = true;
         } else {
@@ -1442,7 +1317,7 @@
         if (data.error) {
           finished = true;
           radioLog(logEl, logLabel, 'DiffusionGemma4 test error: ' + data.error, 'error');
-          resultDiv.innerHTML = `<span style="color: var(--red);">Error: ${data.error}</span>`;
+          resultDiv.innerHTML = `<span style="color: var(--error);">Error: ${escapeHtml(data.error)}</span>`;
           resultDiv.style.display = 'block';
           diffusionEventSource.close();
           diffusionEventSource = null;
@@ -1453,11 +1328,14 @@
           radioLog(logEl, logLabel, `First token — ${data.elapsed_ms}ms`, 'info');
           firstToken = false;
         }
-        // Live gauge view: one request in flight, token speed, elapsed latency
         setGauge('gauge-req', 1, 2);
         setGauge('gauge-tok', data.tok_per_sec, 100);
         setGauge('gauge-lat', data.elapsed_ms / 1000, 10, true);
-        resultDiv.innerHTML = `<strong style="color: var(--purple);">DiffusionGemma4</strong> — ${data.tokens} tokens @ ${data.tok_per_sec} tok/s (${data.elapsed_ms}ms)<br><em>${data.text}</em>`;
+        const counter = $('diffusion-counter');
+        const bar = $('diffusion-bar');
+        if (counter) counter.textContent = `${data.tokens} TOK @ ${data.tok_per_sec} tok/s (${data.elapsed_ms}ms)`;
+        if (bar) bar.textContent = renderBlockBar(data.tokens, 128, 20);
+        resultDiv.innerHTML = `<strong style="color: var(--compression);">DiffusionGemma4</strong> — ${data.tokens} tokens @ ${data.tok_per_sec} tok/s (${data.elapsed_ms}ms)<br><em>${escapeHtml(data.text)}</em>`;
         resultDiv.style.display = 'block';
         if (data.done) {
           finished = true;
@@ -1475,7 +1353,7 @@
         }
         if (!finished) {
           radioLog(logEl, logLabel, 'DiffusionGemma4 stream connection failed', 'error');
-          resultDiv.innerHTML = `<span style="color: var(--red);">Stream connection failed</span>`;
+          resultDiv.innerHTML = `<span style="color: var(--error);">Stream connection failed</span>`;
           resultDiv.style.display = 'block';
         }
         setButtonLoading(btn, false);
@@ -1498,13 +1376,16 @@
       if (rstate === 'running') startRaceStream();
       if (nstate === 'running') startNewsStream();
       if (data.news.results) renderNewsResults(data.news.results);
-      // Restore report buttons if a race already finished while we were away
       if (rstate === 'done' && data.race.results && data.race.results.report) {
         window._lastRaceReport = data.race.results.report;
         $('btn-report-template').disabled = false;
         $('btn-report-llm').disabled = false;
       }
     });
+
+    // Initialize static views
+    renderStrategyMap();
+    updateGauges(0, 0, 0);
   </script>
 </body>
 </html>
