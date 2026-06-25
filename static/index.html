@@ -149,28 +149,34 @@
       font-weight: 700;
     }
 
-    /* Block gauges */
-    .block-gauge {
+    /* Circular gauges — terminal style */
+    .gauge-row {
       display: grid;
-      grid-template-columns: 50px 1fr auto;
-      gap: 0.6rem;
-      align-items: center;
-      margin-bottom: 0.35rem;
-      font-size: 0.85rem;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1rem;
     }
-    .block-gauge label {
-      text-transform: uppercase;
-      color: var(--muted);
-      font-size: 0.8rem;
+    .gauge {
+      border: 1px solid var(--border);
+      padding: 0.7rem;
+      text-align: center;
+      background: var(--bg);
     }
-    .block-gauge .bar {
-      color: var(--active);
-      white-space: pre;
-      overflow: hidden;
-    }
-    .block-gauge .value {
-      text-align: right;
+    .gauge svg { width: 100%; max-width: 150px; height: auto; display: block; margin: 0 auto; }
+    .gauge-value {
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      font-weight: 700;
       color: var(--text);
+      margin-top: -0.2rem;
+    }
+    .gauge-unit { font-size: 0.7rem; color: var(--muted); }
+    .gauge-label {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.2rem;
     }
 
     /* Progress meter */
@@ -179,6 +185,46 @@
       color: var(--active);
       white-space: pre;
       font-size: 0.85rem;
+    }
+
+    /* Racing car track */
+    .race-track {
+      position: relative;
+      margin-top: 0.6rem;
+      height: 28px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .race-track::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0.5rem;
+      right: 0.5rem;
+      height: 1px;
+      border-top: 1px dashed var(--muted);
+      opacity: 0.5;
+      transform: translateY(-50%);
+    }
+    .race-car {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      transform: translate(-50%, -50%);
+      font-size: 1.1rem;
+      line-height: 1;
+      transition: left 0.25s linear;
+      z-index: 2;
+    }
+    .race-flag {
+      position: absolute;
+      top: 50%;
+      right: 0.35rem;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      opacity: 0.6;
+      z-index: 1;
     }
 
     /* Terminal log */
@@ -393,7 +439,7 @@
 
     @media (max-width: 900px) {
       .grid { grid-template-columns: 1fr; }
-      .block-gauge { grid-template-columns: 45px 1fr auto; }
+      .gauge-row { grid-template-columns: 1fr; }
       .worker-row { grid-template-columns: 1fr 100px 70px; }
     }
   </style>
@@ -498,25 +544,46 @@
 
         <div class="panel">
           <div class="panel-title">LIVE GAUGES</div>
-          <div class="block-gauge">
-            <label>REQ/S</label>
-            <span class="bar" id="gauge-req-bar"></span>
-            <span class="value" id="gauge-req-val">0.00/16.67</span>
-          </div>
-          <div class="block-gauge">
-            <label>TOK/S</label>
-            <span class="bar" id="gauge-tok-bar"></span>
-            <span class="value" id="gauge-tok-val">0/16667</span>
-          </div>
-          <div class="block-gauge">
-            <label>LAT</label>
-            <span class="bar" id="gauge-lat-bar"></span>
-            <span class="value" id="gauge-lat-val">0.000s</span>
+          <div class="gauge-row">
+            <div class="gauge">
+              <svg viewBox="0 0 160 100">
+                <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="var(--border)" stroke-width="12" stroke-linecap="round"/>
+                <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="var(--active)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 377" id="gauge-req-arc"/>
+                <line x1="80" y1="90" x2="80" y2="45" stroke="var(--text)" stroke-width="3" stroke-linecap="round" id="gauge-req-needle" transform="rotate(-135 80 90)"/>
+                <circle cx="80" cy="90" r="4" fill="var(--text)"/>
+              </svg>
+              <div class="gauge-value"><span id="gauge-req-val">0.00</span><span class="gauge-unit"> req/s</span></div>
+              <div class="gauge-label">Request Rate</div>
+            </div>
+            <div class="gauge">
+              <svg viewBox="0 0 160 100">
+                <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="var(--border)" stroke-width="12" stroke-linecap="round"/>
+                <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="var(--primary)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 377" id="gauge-tok-arc"/>
+                <line x1="80" y1="90" x2="80" y2="45" stroke="var(--text)" stroke-width="3" stroke-linecap="round" id="gauge-tok-needle" transform="rotate(-135 80 90)"/>
+                <circle cx="80" cy="90" r="4" fill="var(--text)"/>
+              </svg>
+              <div class="gauge-value"><span id="gauge-tok-val">0</span><span class="gauge-unit"> tok/s</span></div>
+              <div class="gauge-label">Token Rate</div>
+            </div>
+            <div class="gauge">
+              <svg viewBox="0 0 160 100">
+                <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="var(--border)" stroke-width="12" stroke-linecap="round"/>
+                <path d="M 20 90 A 60 60 0 1 1 140 90" fill="none" stroke="var(--error)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 377" id="gauge-lat-arc"/>
+                <line x1="80" y1="90" x2="80" y2="45" stroke="var(--text)" stroke-width="3" stroke-linecap="round" id="gauge-lat-needle" transform="rotate(-135 80 90)"/>
+                <circle cx="80" cy="90" r="4" fill="var(--text)"/>
+              </svg>
+              <div class="gauge-value"><span id="gauge-lat-val">0.000</span><span class="gauge-unit"> s</span></div>
+              <div class="gauge-label">Latency</div>
+            </div>
           </div>
         </div>
 
         <div class="progress-box">
           <div class="progress-text" id="race-progress">[>                     ] 0%</div>
+          <div class="race-track" id="race-track">
+            <div class="race-car" id="race-car">🏎️</div>
+            <div class="race-flag">🏁</div>
+          </div>
         </div>
 
         <div class="panel">
@@ -896,19 +963,22 @@
     }
 
     // --- GAUGES ---
+    const GAUGE_ARC_LEN = 377;
     function setGauge(idPrefix, value, max, inverse=false) {
       const clamped = Math.max(0, Math.min(value || 0, max));
       const pct = inverse ? (1 - clamped / max) : (clamped / max);
-      const barEl = $(idPrefix + '-bar');
+      const arcEl = $(idPrefix + '-arc');
+      const needleEl = $(idPrefix + '-needle');
       const valEl = $(idPrefix + '-val');
-      if (barEl) barEl.textContent = renderBlockBar(pct * max, max, 20);
+      if (arcEl) arcEl.setAttribute('stroke-dasharray', `${pct * GAUGE_ARC_LEN} ${GAUGE_ARC_LEN}`);
+      if (needleEl) needleEl.setAttribute('transform', `rotate(${-135 + pct * 270} 80 90)`);
       if (valEl) {
         if (idPrefix === 'gauge-lat') {
-          valEl.textContent = clamped.toFixed(3) + 's';
+          valEl.textContent = clamped.toFixed(3);
         } else if (idPrefix === 'gauge-tok') {
-          valEl.textContent = Math.round(clamped).toLocaleString() + '/' + Math.round(max).toLocaleString();
+          valEl.textContent = Math.round(clamped).toLocaleString();
         } else {
-          valEl.textContent = clamped.toFixed(2) + '/' + max.toFixed(2);
+          valEl.textContent = clamped.toFixed(2);
         }
       }
     }
@@ -976,6 +1046,7 @@
     // --- PROGRESS METER ---
     function setTrackProgress(pct) {
       const el = $('race-progress');
+      const car = $('race-car');
       if (!el) return;
       const p = Math.max(0, Math.min(100, pct));
       const width = 30;
@@ -983,6 +1054,7 @@
       const arrow = filled < width ? '>' : '';
       const bar = '[' + '='.repeat(filled) + arrow + ' '.repeat(Math.max(0, width - filled - (arrow ? 1 : 0))) + ']';
       el.textContent = `${bar} ${p.toFixed(0)}%`;
+      if (car) car.style.left = `${p}%`;
     }
 
     // --- RACING ---
