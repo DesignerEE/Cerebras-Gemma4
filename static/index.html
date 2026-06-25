@@ -211,7 +211,7 @@
       position: absolute;
       top: 50%;
       left: 0;
-      transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%) scaleX(-1);
       font-size: 1.1rem;
       line-height: 1;
       transition: left 0.25s linear;
@@ -220,7 +220,7 @@
     .race-flag {
       position: absolute;
       top: 50%;
-      right: 0.35rem;
+      left: 0.35rem;
       transform: translateY(-50%);
       font-size: 0.9rem;
       opacity: 0.6;
@@ -1054,7 +1054,7 @@
       const arrow = filled < width ? '>' : '';
       const bar = '[' + '='.repeat(filled) + arrow + ' '.repeat(Math.max(0, width - filled - (arrow ? 1 : 0))) + ']';
       el.textContent = `${bar} ${p.toFixed(0)}%`;
-      if (car) car.style.left = `${p}%`;
+      if (car) car.style.left = `${100 - p}%`;
     }
 
     // --- RACING ---
