@@ -1,21 +1,12 @@
 """Pluggable backends for cfire.
 
-Every backend implements the Backend Protocol so the Router (Phase 3) can
-fail over between them transparently. All accept base_url + api_key,
-satisfying the "custom CDN + custom Cerebras endpoints" requirement at the
-constructor level.
-
-Phase 2 ships only CerebrasBackend (port of the existing client's HTTP
-path with proper Pydantic parsing + cfire exception hierarchy).
-
-Phase 3 will add:
-  - LocalBackend  — OpenAI-compatible local server (default 127.0.0.1:8123)
-  - CDNBackend    — Edge proxy that forwards to an inner backend
+Every backend implements the Backend Protocol so the Router can fail over
+between them transparently. All accept base_url + api_key, satisfying the
+"custom CDN + custom Cerebras endpoints" requirement at the constructor level.
 """
 
 from __future__ import annotations
 
-import time
 from typing import Any, AsyncIterator, Protocol, runtime_checkable
 
 from .config import (
@@ -36,6 +27,7 @@ from .transport import Transport, parse_time_info
 class Backend(Protocol):
     """Every backend conforms to this. The Router speaks to backends
     through this interface only, so they're interchangeable."""
+
     base_url: str
 
     async def complete(self, request: ChatRequest) -> ChatResponse: ...
@@ -43,12 +35,11 @@ class Backend(Protocol):
     async def aclose(self) -> None: ...
 
 
-class CerebrasBackend:
-    """Primary backend — POST {base_url}/chat/completions.
+class OpenAICompatibleBackend:
+    """Base class for OpenAI-compatible /chat/completions backends.
 
-    Defaults match the values cfire.config reads from env. Override via
-    kwargs to plug in a custom Cerebras-compatible endpoint (staging,
-    preview, enterprise dedicated tier, self-hosted proxy, etc.).
+    Subclasses override the hooks below to supply backend-specific defaults
+    and response parsing (e.g. Cerebras ``time_info``).
     """
 
     def __init__(
@@ -60,7 +51,7 @@ class CerebrasBackend:
         use_msgpack: bool = False,
         transport: Transport | None = None,
     ):
-        self.base_url = (base_url or CEREBRAS_BASE_URL).rstrip("/")
+        self.base_url = (base_url or self._default_base_url()).rstrip("/")
         self._api_key = api_key  # lazy-resolved on open() if None
         self.concurrency = concurrency
         self._transport = transport or Transport(
@@ -72,7 +63,29 @@ class CerebrasBackend:
         )
         self._owns_transport = transport is None
 
-    async def __aenter__(self) -> "CerebrasBackend":
+    # --- Hooks for subclasses -------------------------------------------
+
+    def _default_base_url(self) -> str:
+        raise NotImplementedError
+
+    def _default_model(self) -> str:
+        raise NotImplementedError
+
+    def _auth_required(self) -> bool:
+        return True
+
+    def _resolve_api_key(self) -> str:
+        """Called by open() when api_key was not provided to the constructor."""
+        return get_api_key()
+
+    @classmethod
+    def _parse_time_info(cls, data: dict[str, Any]) -> Any:
+        """Override to extract backend-specific timing telemetry."""
+        return None
+
+    # --- Lifecycle -------------------------------------------------------
+
+    async def __aenter__(self):
         await self.open()
         return self
 
@@ -83,7 +96,7 @@ class CerebrasBackend:
         # Resolve API key on first open() so constructors don't fail at
         # import time if env isn't set yet.
         if self._api_key is None:
-            self._api_key = get_api_key()
+            self._api_key = self._resolve_api_key()
             self._transport.api_key = self._api_key
         await self._transport.open()
 
@@ -96,9 +109,7 @@ class CerebrasBackend:
     def _payload(self, request: ChatRequest) -> dict[str, Any]:
         """Convert ChatRequest to the wire payload.
 
-        Uses exclude_none=True so optional fields (prompt_cache_key etc.)
-        don't appear when unset. The non-None defaults like service_tier
-        and reasoning_effort are always sent — Cerebras accepts them.
+        Uses exclude_none=True so optional fields don't appear when unset.
         """
         return request.model_dump(mode="json", exclude_none=True)
 
@@ -113,7 +124,11 @@ class CerebrasBackend:
 
         resp = await self._transport.post_chat(payload, stream=False)
         data = resp.json()
-        return self._parse_response(data, getattr(resp, "elapsed_client", 0.0), compressed=_payload_compressed(resp))
+        return self._parse_response(
+            data,
+            getattr(resp, "elapsed_client", 0.0),
+            compressed=_payload_compressed(resp),
+        )
 
     async def stream(self, request: ChatRequest) -> AsyncIterator[StreamChunk]:
         """Streaming request via SSE. Yields StreamChunk until [DONE]."""
@@ -128,6 +143,7 @@ class CerebrasBackend:
                 # Materialize the body for classification, then raise
                 await resp.aread()
                 from .transport import classify_http_error
+
                 try:
                     err_body = resp.json()
                 except Exception:
@@ -138,16 +154,17 @@ class CerebrasBackend:
 
     # --- Response parsing -----------------------------------------------
 
-    @staticmethod
+    @classmethod
     def _parse_response(
+        cls,
         data: dict[str, Any],
         latency: float,
         compressed: bool = False,
     ) -> ChatResponse:
-        """Build a ChatResponse from a Cerebras /chat/completions body.
+        """Build a ChatResponse from an OpenAI-compatible /chat/completions body.
 
         Tolerant of missing fields — `usage` may be absent on early stream
-        chunks, `time_info` is Cerebras-only.
+        chunks, `time_info` is backend-specific.
         """
         from .models import Choice, Message, Usage
 
@@ -155,36 +172,44 @@ class CerebrasBackend:
         choices: list[Choice] = []
         for c in choices_raw:
             msg_raw = c.get("message") or c.get("delta") or {}
-            choices.append(Choice(
-                index=c.get("index", 0),
-                message=Message(
-                    role=msg_raw.get("role", "assistant"),
-                    content=msg_raw.get("content", ""),
-                ),
-                finish_reason=c.get("finish_reason"),
-            ))
+            choices.append(
+                Choice(
+                    index=c.get("index", 0),
+                    message=Message(
+                        role=msg_raw.get("role", "assistant"),
+                        content=msg_raw.get("content", ""),
+                    ),
+                    finish_reason=c.get("finish_reason"),
+                )
+            )
 
         return ChatResponse(
             id=data.get("id", ""),
             model=data.get("model", ""),
             choices=choices,
             usage=Usage.from_api(data.get("usage")),
-            time_info=parse_time_info(data),
+            time_info=cls._parse_time_info(data),
             latency=latency,
             cached=False,
             compressed=compressed,
         )
 
 
-def _payload_compressed(resp: Any) -> bool:
-    """Best-effort: was the request gzipped? Transport doesn't currently
-    surface this on the response, so we always return False here. The
-    Metrics observer records compressed=False unless a future transport
-    exposes request encoding on the response object."""
-    return False
+class CerebrasBackend(OpenAICompatibleBackend):
+    """Cerebras cloud inference backend."""
+
+    def _default_base_url(self) -> str:
+        return CEREBRAS_BASE_URL
+
+    def _default_model(self) -> str:
+        return "gpt-oss-120b"
+
+    @classmethod
+    def _parse_time_info(cls, data: dict[str, Any]) -> Any:
+        return parse_time_info(data)
 
 
-class DiffusionGemmaBackend(CerebrasBackend):
+class DiffusionGemmaBackend(OpenAICompatibleBackend):
     """Local DiffusionGemma4 inference server.
 
     Targets the OpenAI-compatible endpoint served by vLLM on
@@ -193,31 +218,29 @@ class DiffusionGemmaBackend(CerebrasBackend):
     and code-keyword requests here by default.
     """
 
-    def __init__(
-        self,
-        base_url: str | None = None,
-        api_key: str | None = None,
-        **kwargs,
-    ):
-        super().__init__(
-            base_url=base_url or self._default_base_url(),
-            api_key=api_key if api_key is not None else DIFFUSIONGEMMA_API_KEY,
-            **kwargs,
-        )
-
     def _default_base_url(self) -> str:
         return DIFFUSIONGEMMA_BASE_URL
 
     def _default_model(self) -> str:
         return DIFFUSIONGEMMA_MODEL
 
-    async def open(self) -> None:
-        # Local inference servers typically require no auth. Avoid calling
-        # get_api_key() unless the caller explicitly passed api_key=None.
-        if self._api_key is None:
-            self._api_key = DIFFUSIONGEMMA_API_KEY
-            self._transport.api_key = self._api_key
-        await self._transport.open()
+    def _auth_required(self) -> bool:
+        return False  # local server, no auth by default
+
+    def _resolve_api_key(self) -> str:
+        return DIFFUSIONGEMMA_API_KEY
+
+    @classmethod
+    def _parse_time_info(cls, data: dict[str, Any]) -> Any:
+        return None  # local server does not provide Cerebras-style time_info
+
+
+def _payload_compressed(resp: Any) -> bool:
+    """Best-effort: was the request gzipped? Transport doesn't currently
+    surface this on the response, so we always return False here. The
+    Metrics observer records compressed=False unless a future transport
+    exposes request encoding on the response object."""
+    return False
 
 
 class MockBackend:
@@ -257,6 +280,7 @@ class MockBackend:
     async def complete(self, request: ChatRequest) -> ChatResponse:
         import asyncio
         import random
+
         await asyncio.sleep(random.uniform(*self.latency_range))
         tokens = max(
             10,
@@ -285,4 +309,10 @@ class MockBackend:
         yield StreamChunk(delta="Mock response.", finish_reason="stop")
 
 
-__all__ = ["Backend", "CerebrasBackend", "DiffusionGemmaBackend", "MockBackend"]
+__all__ = [
+    "Backend",
+    "OpenAICompatibleBackend",
+    "CerebrasBackend",
+    "DiffusionGemmaBackend",
+    "MockBackend",
+]

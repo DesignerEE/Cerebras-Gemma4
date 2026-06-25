@@ -1,22 +1,21 @@
-"""cfire — Fast-inference library for Cerebras Inference.
+"""cfire — Fast-inference library for Cerebras Inference and DiffusionGemma4.
 
-Public surface (Phase 2 complete):
+Public surface (Phase 3 complete):
   - Models:       ChatRequest, ChatResponse, Message, Usage, TimeInfo, StreamChunk
   - Clients:      AsyncCfire, Cfire (sync wrapper)
-  - Backends:     CerebrasBackend, MockBackend, Backend (Protocol)
+  - Backends:     CerebrasBackend, DiffusionGemmaBackend, MockBackend, Backend (Protocol)
+  - Router:       Router, RoutingPolicy
   - Reliability:  CircuitBreaker, RetryPolicy, DualRateLimiter
   - Cache:        MemoryLRU, RedisCache, TieredCache, cache_key
   - Exceptions:   CerebrasError + Retryable/NonRetryable hierarchy
   - Metrics:      Metrics, MetricEvent
   - Transport:    Transport, maybe_compress, classify_http_error
   - Streaming:    parse_sse_stream, parse_chunk_obj
-
-Phase 3 will add: Router, RoutingPolicy, LocalBackend, CDNBackend, batch API.
 """
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Re-export the public symbols. Local imports (no `.`) keep the names
 # stable for callers regardless of internal module layout.
@@ -60,9 +59,16 @@ from .transport import (
     parse_time_info,
 )
 from .streaming import parse_chunk_obj, parse_sse_stream
-from .backends import Backend, CerebrasBackend, DiffusionGemmaBackend, MockBackend
+from .backends import (
+    Backend,
+    CerebrasBackend,
+    DiffusionGemmaBackend,
+    MockBackend,
+    OpenAICompatibleBackend,
+)
 from .client import AsyncCfire
 from ._sync import Cfire
+from .router import Router, RoutingPolicy
 
 __all__ = [
     "__version__",
@@ -72,7 +78,10 @@ __all__ = [
     # Clients
     "AsyncCfire", "Cfire",
     # Backends
-    "Backend", "CerebrasBackend", "DiffusionGemmaBackend", "MockBackend",
+    "Backend", "CerebrasBackend", "DiffusionGemmaBackend",
+    "MockBackend", "OpenAICompatibleBackend",
+    # Router
+    "Router", "RoutingPolicy",
     # Reliability
     "CircuitBreaker", "RetryPolicy", "DualRateLimiter", "DEFAULT_RETRYABLE",
     # Cache

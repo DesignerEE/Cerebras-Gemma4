@@ -188,13 +188,11 @@ class Transport:
             self._client = None
 
     def _auth_headers(self) -> dict[str, str]:
-        headers = {
+        return {
+            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        return headers
 
     async def post_chat(
         self,

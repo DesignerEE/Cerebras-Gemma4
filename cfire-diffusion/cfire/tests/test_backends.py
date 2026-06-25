@@ -15,7 +15,13 @@ import time
 
 import pytest
 
-from cfire.backends import Backend, CerebrasBackend, DiffusionGemmaBackend, MockBackend
+from cfire.backends import (
+    Backend,
+    CerebrasBackend,
+    DiffusionGemmaBackend,
+    MockBackend,
+    OpenAICompatibleBackend,
+)
 from cfire.models import ChatRequest, Message
 
 
@@ -211,7 +217,7 @@ async def test_cerebras_backend_stream_uses_transport_stream_chat():
 
 def test_diffusiongemma_backend_defaults():
     b = DiffusionGemmaBackend()
-    assert b.base_url == "http://192.168.10.100:1235/v1"
+    assert b.base_url == "http://192.168.10.100:1235"
     assert b._default_model() == "nvidia/diffusiongemma-26B-A4B-it-NVFP4"
 
 
@@ -221,10 +227,28 @@ def test_diffusiongemma_backend_accepts_custom_base_url():
 
 
 def test_diffusiongemma_backend_conforms_to_protocol():
-    assert isinstance(DiffusionGemmaBackend(), Backend)
-
-
-def test_diffusiongemma_backend_no_auth_required():
-    """Local DiffusionGemma4 needs no API key; constructor must not fail."""
     b = DiffusionGemmaBackend()
-    assert b._api_key == ""
+    assert isinstance(b, Backend)
+
+
+def test_diffusiongemma_backend_parse_response_no_time_info():
+    """DiffusionGemma responses don't have Cerebras time_info."""
+    data = {
+        "id": "dg-1",
+        "model": "nvidia/diffusiongemma-26B-A4B-it-NVFP4",
+        "choices": [{"message": {"role": "assistant", "content": "def foo(): pass"}}],
+        "usage": {"prompt_tokens": 5, "completion_tokens": 10, "total_tokens": 15},
+    }
+    r = DiffusionGemmaBackend._parse_response(data, latency=0.1)
+    assert r.time_info is None
+    assert r.text == "def foo(): pass"
+
+
+# --- OpenAICompatibleBackend base ------------------------------------------
+
+def test_cerebras_is_subclass_of_openai_compatible():
+    assert issubclass(CerebrasBackend, OpenAICompatibleBackend)
+
+
+def test_diffusiongemma_is_subclass_of_openai_compatible():
+    assert issubclass(DiffusionGemmaBackend, OpenAICompatibleBackend)

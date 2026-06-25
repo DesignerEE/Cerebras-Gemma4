@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import json
 import random
+import time
 import traceback
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -34,9 +35,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import httpx
 
 from cerebras_race_client import CerebrasRaceClient, CompletionResult
 from news_agents import NewsAgentTeam
+import cfire
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -370,6 +373,7 @@ class NewsManager:
             self.stop_event.set()
             self.task.cancel()
             self.status = {"state": "stopping", "message": "Stopping..."}
+            asyncio.create_task(self._emit({"type": "status", **self.status}))
             return True
         return False
 
@@ -554,6 +558,77 @@ async def news_event_stream():
                     yield f"data: {json.dumps(event, default=str)}\n\n"
                 await asyncio.sleep(1)
                 break
+
+    return StreamingResponse(generator(), media_type="text/event-stream")
+
+
+@app.get("/api/diffusiongemma/stream_test")
+async def stream_test_diffusiongemma():
+    """Streaming inference test against the LAN DiffusionGemma4 server.
+
+    Targets ``192.168.10.100:1235`` (the vLLM DiffusionGemma4 instance).
+    Because this diffusion model returns the full response in a single SSE
+    chunk, the token count is estimated from the generated text length so the
+    dashboard Speed gauge shows a realistic tok/s value.
+    """
+
+    async def generator():
+        start = time.perf_counter()
+        text = ""
+        try:
+            backend = cfire.DiffusionGemmaBackend()
+            model = backend._default_model()
+            url = f"{backend.base_url}/chat/completions"
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": "Count from one to ten."}],
+                "max_completion_tokens": 50,
+                "stream": True,
+            }
+            async with httpx.AsyncClient(timeout=60.0) as http_client:
+                async with http_client.stream(
+                    "POST",
+                    url,
+                    json=payload,
+                    headers={"Accept": "text/event-stream"},
+                ) as resp:
+                    if resp.status_code >= 400:
+                        body = await resp.aread()
+                        raise Exception(f"{resp.status_code}: {body.decode('utf-8', errors='replace')[:200]}")
+                    async for line in resp.aiter_lines():
+                        if not line.startswith("data:"):
+                            continue
+                        data_str = line[5:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            obj = json.loads(data_str)
+                        except json.JSONDecodeError:
+                            continue
+                        choice = (obj.get("choices") or [{}])[0]
+                        delta = (choice.get("delta") or {}).get("content", "")
+                        finish = choice.get("finish_reason")
+                        if delta:
+                            text += delta
+                        elapsed = time.perf_counter() - start
+                        tokens = len(text)
+                        done = bool(finish)
+                        yield f"data: {json.dumps({
+                            'elapsed_ms': round(elapsed * 1000, 1),
+                            'tokens': tokens,
+                            'text': text,
+                            'tok_per_sec': round(tokens / elapsed, 1) if elapsed > 0 else 0,
+                            'done': done,
+                        })}\n\n"
+                        if done:
+                            return
+        except Exception as e:
+            elapsed = time.perf_counter() - start
+            yield f"data: {json.dumps({
+                'error': str(e),
+                'elapsed_ms': round(elapsed * 1000, 1),
+                'done': True,
+            })}\n\n"
 
     return StreamingResponse(generator(), media_type="text/event-stream")
 

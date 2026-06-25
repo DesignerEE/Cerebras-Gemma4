@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cfire"
+version = "0.2.0"
+description = "Fast-inference library for Cerebras WSE-3 and DiffusionGemma4 — cache, smart router, fallback."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "cerebras-bench" }]
+keywords = ["cerebras", "inference", "llm", "fast", "openai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2.5",
+    "httpx[http2]>=0.27",
+    "anyio>=4.0",
+]
+
+[project.optional-dependencies]
+redis = ["redis>=5.0"]
+msgpack = ["msgpack>=1.0"]
+uvloop = ["uvloop>=0.19; sys_platform != 'win32'"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "pytest-mock>=3.12",
+]
+
+[project.urls]
+Documentation = "https://github.com/cerebras-bench/cfire"
+Source = "https://github.com/cerebras-bench/cfire"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cfire"]
+
+[tool.hatch.build.targets.sdist]
+include = ["cfire", "pyproject.toml", "README.md"]

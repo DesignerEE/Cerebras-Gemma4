@@ -34,13 +34,6 @@ from .exceptions import ConfigError
 
 CEREBRAS_BASE_URL = os.environ.get("CFIRE_CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1")
 LOCAL_BASE_URL = os.environ.get("CFIRE_LOCAL_BASE_URL", "http://127.0.0.1:8123")
-DIFFUSIONGEMMA_BASE_URL = os.environ.get(
-    "CFIRE_DIFFUSIONGEMMA_BASE_URL", "http://192.168.10.100:1235/v1"
-)
-DIFFUSIONGEMMA_MODEL = os.environ.get(
-    "CFIRE_DIFFUSIONGEMMA_MODEL", "nvidia/diffusiongemma-26B-A4B-it-NVFP4"
-)
-DIFFUSIONGEMMA_API_KEY: str = os.environ.get("CFIRE_DIFFUSIONGEMMA_API_KEY", "")
 CDN_BASE_URL: str | None = os.environ.get("CFIRE_CDN_BASE_URL")
 REDIS_URL: str | None = os.environ.get("CFIRE_REDIS_URL")
 
@@ -59,6 +52,16 @@ def get_api_key(env_var: str = "CEREBRAS_API_KEY") -> str:
         )
     return v
 
+# --- DiffusionGemma defaults --------------------------------------------
+
+DIFFUSIONGEMMA_BASE_URL = os.environ.get(
+    "CFIRE_DIFFUSIONGEMMA_BASE_URL", "http://192.168.10.100:1235"
+)
+DIFFUSIONGEMMA_MODEL = os.environ.get(
+    "CFIRE_DIFFUSIONGEMMA_MODEL", "nvidia/diffusiongemma-26B-A4B-it-NVFP4"
+)
+DIFFUSIONGEMMA_API_KEY = os.environ.get("CFIRE_DIFFUSIONGEMMA_API_KEY", "")
+
 # --- Defaults ------------------------------------------------------------
 
 DEFAULT_MODEL = os.environ.get("CFIRE_MODEL", "gpt-oss-120b")
@@ -75,11 +78,11 @@ CIRCUIT_COOLDOWN = float(os.environ.get("CFIRE_CB_COOLDOWN", "30.0"))
 __all__ = [
     "CEREBRAS_BASE_URL",
     "LOCAL_BASE_URL",
+    "CDN_BASE_URL",
+    "REDIS_URL",
     "DIFFUSIONGEMMA_BASE_URL",
     "DIFFUSIONGEMMA_MODEL",
     "DIFFUSIONGEMMA_API_KEY",
-    "CDN_BASE_URL",
-    "REDIS_URL",
     "get_api_key",
     "DEFAULT_MODEL",
     "DEFAULT_CONCURRENCY",

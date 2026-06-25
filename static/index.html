@@ -651,6 +651,8 @@
           <button id="btn-stop" class="btn-stop" disabled>Abort</button>
           <button id="btn-report-template" class="btn-start" style="background: var(--panel); border-color: var(--accent); color: var(--accent);" disabled>Show Report</button>
           <button id="btn-report-llm" class="btn-start" style="background: var(--panel); border-color: var(--accent); color: var(--accent);" disabled>LLM Analysis</button>
+          <button id="btn-diffusion-test" class="btn-start" style="background: var(--panel); border-color: var(--purple); color: var(--purple); margin-top: 8px;">Test DiffusionGemma4</button>
+          <div id="diffusion-result-race" class="synthesis" style="margin-top: 8px; display: none;"></div>
         </div>
 
         <div id="race-report-container" class="panel" style="display: none; margin-top: 1rem;">
@@ -776,6 +778,8 @@
           </div>
           <button id="news-btn-start" class="btn-start">Deploy Scouts</button>
           <button id="news-btn-stop" class="btn-stop" disabled>Abort</button>
+          <button id="news-btn-diffusion" class="btn-start" style="background: var(--panel); border-color: var(--purple); color: var(--purple); margin-top: 8px;">Test DiffusionGemma4</button>
+          <div id="diffusion-result-news" class="synthesis" style="margin-top: 8px; display: none;"></div>
         </div>
 
         <div class="panel">
@@ -961,10 +965,13 @@
 
     function setButtonLoading(btn, loading, text) {
       if (loading) {
-        btn.dataset.originalText = btn.innerHTML;
+        if (!btn.dataset.originalText) {
+          btn.dataset.originalText = btn.innerHTML;
+        }
         btn.innerHTML = '<span class="spinner"></span>' + (text || 'Running...');
       } else {
         btn.innerHTML = btn.dataset.originalText || text || btn.innerHTML;
+        delete btn.dataset.originalText;
       }
     }
 
@@ -1029,6 +1036,7 @@
     const logsEl = $('logs');
     const towerEl = $('timing-tower');
     let raceEventSource = null;
+    let diffusionEventSource = null;
     let requestTimes = [];
     let raceStartTime = 0;
 
@@ -1055,6 +1063,31 @@
       setGauge('gauge-req', req || 0, 16.67);
       setGauge('gauge-tok', tok || 0, 16667);
       setGauge('gauge-lat', lat || 0, 3, true);
+    }
+
+    let gaugePulseInterval = null;
+    let gaugePulsing = false;
+    function startGaugePulse(label='TESTING') {
+      stopGaugePulse();
+      gaugePulsing = true;
+      const start = Date.now();
+      const period = 1200; // ms per full sweep
+      gaugePulseInterval = setInterval(() => {
+        if (!gaugePulsing) return;
+        const sweep = (Math.sin(((Date.now() - start) / period) * Math.PI * 2) + 1) / 2; // 0..1
+        updateGauges(sweep * 16.67, sweep * 16667, (1 - sweep) * 3);
+        // Overlay a testing label on the gauges while pulsing
+        $('gauge-req-val').textContent = label;
+        $('gauge-tok-val').textContent = label;
+        $('gauge-lat-val').textContent = label;
+      }, 80);
+    }
+    function stopGaugePulse() {
+      gaugePulsing = false;
+      if (gaugePulseInterval) {
+        clearInterval(gaugePulseInterval);
+        gaugePulseInterval = null;
+      }
     }
 
     function addTowerRow(pos, summary, fastest=false) {
@@ -1343,7 +1376,7 @@
       }
     }
 
-    $('news-btn-start').addEventListener('click', async () => {
+    async function deployScouts() {
       const query = $('news-query').value.trim();
       if (!query) return alert('Enter a query');
       SoundEngine.scoutDeploy();
@@ -1356,12 +1389,105 @@
       const data = await res.json();
       if (data.ok) { radioLog(newsLogsEl, 'Pit Wall', 'Scouts deployed'); startNewsStream(); }
       else { radioLog(newsLogsEl, 'Pit Wall', 'Deployment failed: ' + data.error, 'error'); }
-    });
+    }
+
+    $('news-btn-start').addEventListener('click', deployScouts);
 
     $('news-btn-stop').addEventListener('click', async () => {
-      await fetch('/api/news/stop', { method: 'POST' });
-      SoundEngine.abortTone();
-      radioLog(newsLogsEl, 'Pit Wall', 'Abort called');
+      setButtonLoading($('news-btn-stop'), true, 'Stopping...');
+      try {
+        const res = await fetch('/api/news/stop', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          SoundEngine.abortTone();
+          radioLog(newsLogsEl, 'Pit Wall', 'Abort called');
+          // Reset the Deploy Scouts button immediately so it never stays stuck spinning
+          setButtonLoading($('news-btn-start'), false, 'Deploy Scouts');
+          $('news-btn-start').disabled = false;
+          // Reset the Abort button back to its normal label (kept disabled until next run)
+          setButtonLoading($('news-btn-stop'), false, 'Abort');
+          $('news-btn-stop').disabled = true;
+        } else {
+          radioLog(newsLogsEl, 'Pit Wall', 'Abort failed: ' + (data.error || 'unknown'), 'error');
+          setButtonLoading($('news-btn-stop'), false, 'Abort');
+        }
+      } catch (e) {
+        radioLog(newsLogsEl, 'Pit Wall', 'Abort request failed: ' + e.message, 'error');
+        setButtonLoading($('news-btn-stop'), false, 'Abort');
+      }
+    });
+
+    // --- DiffusionGemma4 local test ----------------------------------------
+    async function runDiffusionTest(btnId, resultId, logEl, logLabel) {
+      const btn = $(btnId);
+      const resultDiv = $(resultId);
+      setButtonLoading(btn, true, 'Streaming...');
+      resultDiv.style.display = 'none';
+      resultDiv.innerHTML = '';
+      if (diffusionEventSource) {
+        diffusionEventSource.close();
+        diffusionEventSource = null;
+      }
+      radioLog(logEl, logLabel, 'DiffusionGemma4 stream test started', 'info');
+      let finished = false;
+      let firstToken = true;
+      diffusionEventSource = new EventSource('/api/diffusiongemma/stream_test');
+      diffusionEventSource.onmessage = (e) => {
+        let data;
+        try {
+          data = JSON.parse(e.data);
+        } catch (err) {
+          return;
+        }
+        if (data.error) {
+          finished = true;
+          radioLog(logEl, logLabel, 'DiffusionGemma4 test error: ' + data.error, 'error');
+          resultDiv.innerHTML = `<span style="color: var(--red);">Error: ${data.error}</span>`;
+          resultDiv.style.display = 'block';
+          diffusionEventSource.close();
+          diffusionEventSource = null;
+          setButtonLoading(btn, false);
+          return;
+        }
+        if (firstToken && data.tokens > 0) {
+          radioLog(logEl, logLabel, `First token — ${data.elapsed_ms}ms`, 'info');
+          firstToken = false;
+        }
+        // Live gauge view: one request in flight, token speed, elapsed latency
+        setGauge('gauge-req', 1, 2);
+        setGauge('gauge-tok', data.tok_per_sec, 100);
+        setGauge('gauge-lat', data.elapsed_ms / 1000, 10, true);
+        resultDiv.innerHTML = `<strong style="color: var(--purple);">DiffusionGemma4</strong> — ${data.tokens} tokens @ ${data.tok_per_sec} tok/s (${data.elapsed_ms}ms)<br><em>${data.text}</em>`;
+        resultDiv.style.display = 'block';
+        if (data.done) {
+          finished = true;
+          const snippet = data.text.length > 80 ? data.text.slice(0, 80) + '...' : data.text;
+          radioLog(logEl, logLabel, `${data.tokens} tokens in ${data.elapsed_ms}ms — "${snippet}"`, 'info');
+          diffusionEventSource.close();
+          diffusionEventSource = null;
+          setButtonLoading(btn, false);
+        }
+      };
+      diffusionEventSource.onerror = () => {
+        if (diffusionEventSource) {
+          diffusionEventSource.close();
+          diffusionEventSource = null;
+        }
+        if (!finished) {
+          radioLog(logEl, logLabel, 'DiffusionGemma4 stream connection failed', 'error');
+          resultDiv.innerHTML = `<span style="color: var(--red);">Stream connection failed</span>`;
+          resultDiv.style.display = 'block';
+        }
+        setButtonLoading(btn, false);
+      };
+    }
+
+    $('btn-diffusion-test').addEventListener('click', () => runDiffusionTest('btn-diffusion-test', 'diffusion-result-race', logsEl, 'Race Control'));
+    $('news-btn-diffusion').addEventListener('click', async () => {
+      const query = $('news-query').value.trim();
+      if (!query) return alert('Enter a query');
+      runDiffusionTest('news-btn-diffusion', 'diffusion-result-news', newsLogsEl, 'Pit Wall');
+      await deployScouts();
     });
 
     // Poll status on load

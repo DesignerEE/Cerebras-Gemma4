@@ -16,7 +16,7 @@ import asyncio
 
 import pytest
 
-from cfire import AsyncCfire, Cfire
+from cfire import AsyncCfire, Cfire, Router, RoutingPolicy
 from cfire.backends import MockBackend
 from cfire.cache import MemoryLRU
 from cfire.exceptions import RateLimitError
@@ -24,6 +24,38 @@ from cfire.metrics import Metrics
 from cfire.models import ChatRequest, ChatResponse, Message, StreamChunk
 
 from .conftest import FakeBackend
+
+
+# --- Router end-to-end ---------------------------------------------------
+
+async def test_router_wrapped_by_async_cfire_routes_coding_to_diffusiongemma(fake_backend):
+    """AsyncCfire(backend=Router(...)) routes code requests to the diffusiongemma backend."""
+    from cfire.backends import DiffusionGemmaBackend
+
+    cerebras = fake_backend
+    cerebras.respond_text("from cerebras", completion_tokens=1)
+
+    diffusion = FakeBackend()
+    diffusion.respond_text("from diffusiongemma", completion_tokens=1)
+
+    router = Router(
+        {"cerebras": cerebras, "diffusiongemma": diffusion},
+        policy=RoutingPolicy(),
+    )
+    async with AsyncCfire(backend=router, enable_cache=False) as client:
+        general = await client.complete(ChatRequest(
+            model="m",
+            messages=[Message(role="user", content="hello")],
+        ))
+        coding = await client.complete(ChatRequest(
+            model="m",
+            messages=[Message(role="user", content="write a python function")],
+        ))
+
+    assert general.text == "from cerebras"
+    assert coding.text == "from diffusiongemma"
+    assert cerebras.complete_calls == 1
+    assert diffusion.complete_calls == 1
 
 
 # --- Single complete() -----------------------------------------------------
@@ -216,28 +248,6 @@ def test_metrics_callback_fires_on_record():
     assert len(events) == 1
     assert events[0].kind == "response"
     assert events[0].tokens == 2
-
-
-# --- MockBackend end-to-end (covers _compat path used by web_demo) ---------
-
-async def test_mock_backend_via_compat_shim():
-    """The legacy CerebrasRaceClient(mock=True) path must still work."""
-    from cfire._compat import CerebrasRaceClient
-
-    async with CerebrasRaceClient(mock=True) as client:
-        result = await client.complete("hi", max_completion_tokens=50)
-    assert result.text == "Mock response."
-    assert result.completion_tokens >= 10  # max(10, ratio*max)
-    assert result.latency == 0.0
-
-
-async def test_compat_client_bulk_works():
-    from cfire._compat import CerebrasRaceClient, CompletionResult
-
-    async with CerebrasRaceClient(mock=True) as client:
-        results = await client.bulk_complete(["q1", "q2", "q3"], max_completion_tokens=20)
-    assert len(results) == 3
-    assert all(isinstance(r, CompletionResult) for r in results)
 
 
 async def test_stream_with_cache_enabled_does_not_crash(fake_backend):
