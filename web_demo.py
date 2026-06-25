@@ -17,6 +17,8 @@ Endpoints:
     POST /api/news/start     {query, angles}
     POST /api/news/stop      stop news search
     GET  /api/news/stream    news SSE events
+    GET  /api/headroom/status  current Headroom compression snapshot
+    GET  /api/headroom/stream  Headroom SSE events
 """
 
 from __future__ import annotations
@@ -39,6 +41,7 @@ import httpx
 
 from cerebras_race_client import CerebrasRaceClient, CompletionResult
 from news_agents import NewsAgentTeam
+from headroom import HeadroomMonitor
 import cfire
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -380,15 +383,18 @@ class NewsManager:
 
 race_manager = RaceManager()
 news_manager = NewsManager()
+headroom_monitor = HeadroomMonitor()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    headroom_monitor.start()
     yield
     if race_manager.task and not race_manager.task.done():
         race_manager.stop()
     if news_manager.task and not news_manager.task.done():
         news_manager.stop()
+    headroom_monitor.stop()
 
 
 app = FastAPI(title="Cerebras Racing Demo", lifespan=lifespan)
@@ -498,6 +504,7 @@ async def get_status():
     return {
         "race": {"status": race_manager.status, "results": race_manager.results},
         "news": {"status": news_manager.status, "results": news_manager.results},
+        "headroom": headroom_monitor.latest_snapshot(),
     }
 
 
@@ -558,6 +565,36 @@ async def news_event_stream():
                     yield f"data: {json.dumps(event, default=str)}\n\n"
                 await asyncio.sleep(1)
                 break
+
+    return StreamingResponse(generator(), media_type="text/event-stream")
+
+
+@app.get("/api/headroom/status")
+async def headroom_status():
+    return {"ok": True, "headroom": headroom_monitor.latest_snapshot()}
+
+
+@app.get("/api/headroom/stream")
+async def headroom_event_stream():
+    queue = headroom_monitor.subscribe()
+
+    async def generator():
+        # Send current snapshot immediately.
+        yield f"data: {json.dumps({'type': 'snapshot', **headroom_monitor.latest_snapshot()})}\n\n"
+        loop = asyncio.get_event_loop()
+        while True:
+            try:
+                # The monitor puts dicts on a threading.Queue; pull them off
+                # in an executor so we don't block the event loop.
+                snap = await asyncio.wait_for(
+                    loop.run_in_executor(None, queue.get, True, 1.0),
+                    timeout=5.0,
+                )
+                yield f"data: {json.dumps({'type': 'snapshot', **snap})}\n\n"
+            except asyncio.TimeoutError:
+                yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+            except Empty:
+                yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
 
     return StreamingResponse(generator(), media_type="text/event-stream")
 

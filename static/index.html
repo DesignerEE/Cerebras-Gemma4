@@ -407,6 +407,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="racing">[RACE]</button>
       <button class="tab" data-tab="news">[NEWS]</button>
+      <button class="tab" data-tab="headroom">[HEADROOM]</button>
     </div>
     <div class="status-pill" id="status-pill">
       <div class="status-dot"></div>
@@ -559,6 +560,128 @@
         <div class="panel">
           <div class="panel-title">SCOUT REPORTS</div>
           <div id="news-scouts"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- HEADROOM PANEL -->
+  <div id="headroom-panel" class="panel-section">
+    <div class="grid">
+      <aside>
+        <div class="panel">
+          <div class="panel-title">HEADROOM STATUS</div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">LOG:</span> <span id="headroom-log-path">~/.headroom/logs/proxy.log</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">STATE:</span> <span id="headroom-state">idle</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">LAST EVENT:</span> <span id="headroom-last-event">—</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">SAVED TOKENS</div>
+          <div class="block-gauge">
+            <label>TOTAL</label>
+            <span class="bar" id="headroom-total-bar"></span>
+            <span class="value" id="headroom-total-val">0</span>
+          </div>
+          <div class="block-gauge">
+            <label>LAST</label>
+            <span class="bar" id="headroom-last-bar"></span>
+            <span class="value" id="headroom-last-val">0</span>
+          </div>
+          <div class="block-gauge">
+            <label>AVG</label>
+            <span class="bar" id="headroom-avg-bar"></span>
+            <span class="value" id="headroom-avg-val">0</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">REQUESTS:</span> <span id="headroom-requests">0 completed</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">CACHE BATTERY</div>
+          <div class="block-gauge">
+            <label>HIT %</label>
+            <span class="bar" id="headroom-cache-bar"></span>
+            <span class="value" id="headroom-cache-val">0.0%</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">OPTIMIZE TIME:</span> <span id="headroom-opt-ms">0 ms avg</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">TRANSFORMS:</span> <span id="headroom-transforms">—</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">TOIN</div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">PATTERNS:</span> <span id="headroom-patterns">0</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">COMPRESSIONS:</span> <span id="headroom-compressions">0</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">RETRIEVALS:</span> <span id="headroom-retrievals">0</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">RATE:</span> <span id="headroom-retrieval-rate">0.0%</span>
+          </div>
+        </div>
+      </aside>
+
+      <main>
+        <div class="panel">
+          <div class="panel-title">LIVE SAVINGS SPEEDOMETER</div>
+          <div class="block-gauge">
+            <label>NOW</label>
+            <span class="bar" id="headroom-speed-bar"></span>
+            <span class="value" id="headroom-speed-val" style="color:var(--highlight);">0.00%</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">ODOMETER:</span> <span id="headroom-odometer">0 tokens</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">TOKEN REGEN</div>
+          <div class="block-gauge">
+            <label>REGEN</label>
+            <span class="bar" id="headroom-regen-bar"></span>
+            <span class="value" id="headroom-regen-val">0.00%</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">SCALE:</span> <span>0% – 25%</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">RECENT REQUEST PULSES</div>
+          <div class="sparkline-wrap"><canvas id="headroomPulseChart"></canvas></div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">last</span> <span id="headroom-pulse-last">0.00%</span>
+            <span class="prompt" style="margin-left:1rem;">avg</span> <span id="headroom-pulse-avg">0.00%</span>
+            <span class="prompt" style="margin-left:1rem;">peak</span> <span id="headroom-pulse-peak">0.00%</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">FRAME COMPRESSION</div>
+          <div class="block-gauge">
+            <label>BYTE</label>
+            <span class="bar" id="headroom-frame-bar"></span>
+            <span class="value" id="headroom-frame-val">0.00%</span>
+          </div>
+          <div class="sparkline-wrap" style="height:100px;"><canvas id="headroomFrameChart"></canvas></div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">last frame:</span> <span id="headroom-frame-last">0.00%</span>
+          </div>
         </div>
       </main>
     </div>
@@ -1292,6 +1415,85 @@
       }
     });
 
+    // --- HEADROOM MONITOR --------------------------------------------------
+    let headroomEventSource = null;
+    let headroomPulseData = [];
+    let headroomFrameData = [];
+
+    function fmtNum(n, d=0) {
+      return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+    }
+
+    function renderHeadroomSnapshot(snap) {
+      if (!snap) return;
+      $('headroom-log-path').textContent = snap.log_path || '~/.headroom/logs/proxy.log';
+      $('headroom-state').textContent = snap.status || 'idle';
+      $('headroom-last-event').textContent = snap.last_event_at
+        ? new Date(snap.last_event_at).toTimeString().slice(0, 8)
+        : '—';
+
+      const speed = snap.speedometer || {};
+      $('headroom-speed-val').textContent = (speed.now_pct || 0).toFixed(2) + '%';
+      $('headroom-speed-bar').textContent = renderBlockBar(speed.now_pct, speed.scale_max || 25, 24);
+
+      const odometer = snap.odometer || {};
+      $('headroom-odometer').textContent = fmtNum(odometer.tok_saved || 0) + ' tokens';
+
+      const regen = snap.token_regen || {};
+      $('headroom-regen-val').textContent = (regen.pct || 0).toFixed(2) + '%';
+      $('headroom-regen-bar').textContent = renderBlockBar(regen.pct, regen.scale_max || 25, 24);
+
+      const saved = snap.saved_tokens || {};
+      $('headroom-total-val').textContent = fmtNum(saved.total || 0);
+      $('headroom-total-bar').textContent = renderBlockBar(saved.total, Math.max(saved.total, 1), 24);
+      $('headroom-last-val').textContent = fmtNum(saved.last_request || 0);
+      $('headroom-last-bar').textContent = renderBlockBar(saved.last_request, Math.max(saved.last_request, 1), 24);
+
+      const requests = snap.requests || {};
+      $('headroom-requests').textContent = `${requests.completed || 0} completed, ${fmtNum(requests.avg_saved || 0, 1)} avg saved`;
+      $('headroom-avg-val').textContent = fmtNum(requests.avg_saved || 0, 1);
+      $('headroom-avg-bar').textContent = renderBlockBar(requests.avg_saved || 0, Math.max(requests.avg_saved || 0, 1), 24);
+
+      const cache = snap.cache_battery || {};
+      $('headroom-cache-val').textContent = (cache.pct || 0).toFixed(1) + '%';
+      $('headroom-cache-bar').textContent = renderBlockBar(cache.pct, 100, 24);
+
+      $('headroom-opt-ms').textContent = (snap.optimize_time || {}).avg_ms + ' ms avg';
+      $('headroom-transforms').textContent = (snap.transforms || []).join(', ') || '—';
+
+      const toin = snap.toin || {};
+      $('headroom-patterns').textContent = fmtNum(toin.patterns || 0);
+      $('headroom-compressions').textContent = fmtNum(toin.compressions || 0);
+      $('headroom-retrievals').textContent = fmtNum(toin.retrievals || 0);
+      $('headroom-retrieval-rate').textContent = (toin.rate || 0).toFixed(1) + '%';
+
+      const pulses = snap.recent_pulses || [];
+      headroomPulseData = pulses;
+      $('headroom-pulse-last').textContent = (speed.now_pct || 0).toFixed(2) + '%';
+      $('headroom-pulse-avg').textContent = pulses.length
+        ? (pulses.reduce((a, b) => a + b, 0) / pulses.length).toFixed(2) + '%'
+        : '0.00%';
+      $('headroom-pulse-peak').textContent = pulses.length ? Math.max(...pulses).toFixed(2) + '%' : '0.00%';
+      renderSparkline($('headroomPulseChart'), pulses, [], '#00FF41', null);
+
+      const frame = snap.frame_compression || {};
+      headroomFrameData = frame.recent || [];
+      $('headroom-frame-val').textContent = (frame.byte_pct || 0).toFixed(2) + '%';
+      $('headroom-frame-bar').textContent = renderBlockBar(frame.byte_pct || 0, 25, 24);
+      $('headroom-frame-last').textContent = (frame.last_frame_pct || 0).toFixed(2) + '%';
+      renderSparkline($('headroomFrameChart'), headroomFrameData, [], '#9B59B6', null);
+    }
+
+    function startHeadroomStream() {
+      if (headroomEventSource) headroomEventSource.close();
+      headroomEventSource = new EventSource('/api/headroom/stream');
+      headroomEventSource.onmessage = e => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'snapshot') renderHeadroomSnapshot(msg);
+      };
+      headroomEventSource.onerror = () => { console.warn('Headroom stream lost'); headroomEventSource.close(); };
+    }
+
     // --- DiffusionGemma4 local test ----------------------------------------
     async function runDiffusionTest(btnId, resultId, logEl, logLabel) {
       const btn = $(btnId);
@@ -1376,12 +1578,15 @@
       if (rstate === 'running') startRaceStream();
       if (nstate === 'running') startNewsStream();
       if (data.news.results) renderNewsResults(data.news.results);
+      if (data.headroom) renderHeadroomSnapshot(data.headroom);
       if (rstate === 'done' && data.race.results && data.race.results.report) {
         window._lastRaceReport = data.race.results.report;
         $('btn-report-template').disabled = false;
         $('btn-report-llm').disabled = false;
       }
     });
+
+    startHeadroomStream();
 
     // Initialize static views
     renderStrategyMap();
