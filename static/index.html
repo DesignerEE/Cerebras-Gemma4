@@ -638,6 +638,25 @@
 
       <main>
         <div class="panel">
+          <div class="panel-title">ABOUT HEADROOM</div>
+          <p style="margin:0 0 0.5rem;line-height:1.55;">
+            LLM agents burn context quietly. Headroom compresses that context, but the work is
+            mostly invisible unless you read proxy logs. This panel turns those logs into an
+            executive-readable dashboard: token savings, compression spikes, cache hits, frame
+            reduction, and active transforms, all updating live.
+          </p>
+          <p style="margin:0 0 0.5rem;line-height:1.55;color:var(--primary);font-weight:700;">
+            It is the hybrid-car regen meter for AI context.
+          </p>
+          <p style="margin:0;line-height:1.55;">
+            The speedometer shows the latest completed request in real time. The odometer beside
+            it shows the cumulative tokens recovered during the session. These numbers are a field
+            reading from a local proxy.log, not a universal benchmark. Your savings depend on
+            workflow, model, context shape, and Headroom configuration.
+          </p>
+        </div>
+
+        <div class="panel">
           <div class="panel-title">LIVE SAVINGS SPEEDOMETER</div>
           <div class="block-gauge">
             <label>NOW</label>
