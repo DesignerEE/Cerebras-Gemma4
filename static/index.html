@@ -481,6 +481,22 @@
 
       <main>
         <div class="panel">
+          <div class="panel-title">ABOUT RACE</div>
+          <p style="margin:0 0 0.5rem;line-height:1.55;">
+            The Race tab benchmarks Cerebras inference throughput. It sweeps
+            concurrency and token-size combinations, identifies the fastest
+            configuration for your chosen metric (tok/s, req/s, or balanced),
+            then runs a sustained race with the winner to confirm real-world
+            performance.
+          </p>
+          <p style="margin:0;line-height:1.55;">
+            Use it to find the optimal setup for your workload before deploying
+            to production. Results are streamed live via Server-Sent Events and
+            summarized in a post-race report.
+          </p>
+        </div>
+
+        <div class="panel">
           <div class="panel-title">LIVE GAUGES</div>
           <div class="block-gauge">
             <label>REQ/S</label>
@@ -552,6 +568,21 @@
       </aside>
 
       <main>
+        <div class="panel">
+          <div class="panel-title">ABOUT NEWS</div>
+          <p style="margin:0 0 0.5rem;line-height:1.55;">
+            The News tab runs a commander-scout research team. Scouts fan out
+            across RSS feeds from different angles — breaking news, technical
+            analysis, and market reaction — while a commander synthesizes their
+            findings into a single cited report.
+          </p>
+          <p style="margin:0;line-height:1.55;">
+            Use it for rapid, multi-perspective research on any topic. Each scout
+            fetches fresh sources, summarizes them, and the commander resolves
+            overlaps and gaps into an executive-ready answer.
+          </p>
+        </div>
+
         <div class="panel">
           <div class="panel-title">COMMANDER SYNTHESIS</div>
           <pre id="news-synthesis" class="synthesis-pre">Enter a query and deploy scouts.</pre>
