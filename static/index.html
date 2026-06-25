@@ -268,13 +268,31 @@
     .tower-row.fastest { color: var(--highlight); font-weight: 700; }
     .tower-row.pos1 { color: var(--active); }
 
-    /* Sparkline */
+    /* Sparkline — futuristic telemetry scope */
     .sparkline-wrap {
       height: 180px;
       border: 1px solid var(--border);
       padding: 0.4rem;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,0.04) 0%, transparent 40%, rgba(0,0,0,0.04) 100%),
+        var(--bg);
+      position: relative;
+      overflow: hidden;
     }
-    #throughputChart { width: 100%; height: 100%; display: block; }
+    .sparkline-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.04) 2px,
+        rgba(0,0,0,0.04) 4px
+      );
+      pointer-events: none;
+    }
+    #throughputChart { width: 100%; height: 100%; display: block; position: relative; z-index: 1; }
 
     /* Strategy map / workers */
     .strategy-map { display: flex; flex-direction: column; gap: 0.2rem; }
@@ -688,6 +706,8 @@
       el.scrollTop = el.scrollHeight;
     }
 
+
+
     function renderSparkline(canvas, values1, values2, color1, color2) {
       const ctx = canvas.getContext('2d');
       const dpr = window.devicePixelRatio || 1;
@@ -702,34 +722,75 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
+      const pad = { top: 8, right: 4, bottom: 4, left: 4 };
+      const cw = w - pad.left - pad.right;
+      const ch = h - pad.top - pad.bottom;
+
       const data1 = values1 || [];
       const data2 = values2 || [];
       const n = Math.max(data1.length, data2.length);
-      if (n === 0) return;
+      if (n < 2) return;
       const maxVal = Math.max(1, ...data1, ...data2);
-      const slot = Math.floor(w / n);
-      const barW = Math.max(1, Math.floor(slot * 0.45));
-      const gap = Math.max(1, Math.floor(slot * 0.1));
-      const chartH = h - 4;
 
       // grid
-      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
       for (let i = 1; i < 4; i++) {
-        const y = (h / 4) * i;
-        ctx.fillRect(0, y, w, 1);
+        const y = pad.top + (ch / 4) * i;
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(w - pad.right, y);
+      }
+      for (let i = 1; i < 6; i++) {
+        const x = pad.left + (cw / 6) * i;
+        ctx.moveTo(x, pad.top);
+        ctx.lineTo(x, h - pad.bottom);
+      }
+      ctx.stroke();
+
+      function drawSeries(values, color, fillColor) {
+        const step = cw / (n - 1);
+        const points = values.map((v, i) => ({
+          x: pad.left + i * step,
+          y: pad.top + ch - (Math.max(0, v) / maxVal) * ch
+        }));
+
+        // glow stroke
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        points.forEach((p, i) => {
+          if (i === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        ctx.stroke();
+        ctx.restore();
+
+        // gradient area
+        const grad = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
+        grad.addColorStop(0, fillColor);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, h - pad.bottom);
+        points.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.lineTo(points[points.length - 1].x, h - pad.bottom);
+        ctx.closePath();
+        ctx.fill();
+
+        // data dots
+        ctx.fillStyle = color;
+        points.forEach((p, i) => {
+          if (i % 4 === 0) ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
+        });
       }
 
-      for (let i = 0; i < n; i++) {
-        const x = i * (barW * 2 + gap * 2) + gap;
-        const v1 = data1[i] || 0;
-        const v2 = data2[i] || 0;
-        const h1 = Math.max(1, (v1 / maxVal) * chartH);
-        const h2 = Math.max(1, (v2 / maxVal) * chartH);
-        ctx.fillStyle = color2 || '#9B59B6';
-        ctx.fillRect(x + barW + gap, h - h2, barW, h2);
-        ctx.fillStyle = color1 || '#00FF41';
-        ctx.fillRect(x, h - h1, barW, h1);
-      }
+      drawSeries(data1, color1 || '#00FF41', 'rgba(0, 255, 65, 0.22)');
+      drawSeries(data2, color2 || '#9B59B6', 'rgba(155, 89, 182, 0.18)');
     }
 
     function renderTimingTower(summaries) {
