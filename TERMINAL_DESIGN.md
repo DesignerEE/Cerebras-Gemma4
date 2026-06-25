@@ -6,14 +6,15 @@ Applied to `static/index.html` for the Cerebras benchmark dashboard.
 
 | Role | Hex | CSS Variable | Usage |
 |------|-----|--------------|-------|
-| Background | `#0D0D0D` | `--bg` | Terminal canvas |
+| Background | `#F8F8F8` | `--bg` | Terminal canvas (light theme, matching the reference screenshot) |
 | Primary / Headers | `#4ECDC4` | `--primary` | Section titles, brand, system prefixes |
 | Active / Positive | `#00FF41` | `--active` | Bars, sparklines, battery fill, status, progress |
 | Real-time Highlight | `#FFD700` | `--highlight` | "NOW" badge, live deltas, current request values, scout prefixes |
 | Compression / Secondary | `#9B59B6` | `--compression` | Secondary data series, DiffusionGemma accent, commander prefixes |
 | Secondary Text | `#AAAAAA` | `--muted` | Labels, timestamps, file paths, scale markers |
-| Body Text | `#F0F2F5` | `--text` | Default readable text |
+| Body Text | `#1A1A1A` | `--text` | Default readable text |
 | Error | `#FF2800` | `--error` | Error states and `[ERR]` log prefix |
+| Border / Rules | `#D0D0D0` | `--border` | Panel borders and ASCII separators |
 
 ## Typography
 

@@ -6,14 +6,14 @@
   <title>HEADROOM REGEN DASHBOARD</title>
   <style>
     :root {
-      --bg: #0D0D0D;
+      --bg: #F8F8F8;
       --primary: #4ECDC4;
       --active: #00FF41;
       --highlight: #FFD700;
       --compression: #9B59B6;
-      --muted: #AAAAAA;
-      --text: #F0F2F5;
-      --border: #333333;
+      --muted: #666666;
+      --text: #1A1A1A;
+      --border: #D0D0D0;
       --error: #FF2800;
     }
     * { box-sizing: border-box; }
@@ -125,7 +125,7 @@
     }
 
     .rule { border: none; border-top: 1px solid var(--border); margin: 0.5rem 0; }
-    .rule-eq { color: var(--border); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0.4rem 0; }
+    .rule-eq { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0.4rem 0; }
 
     /* Mode selector */
     .mode-box { display: flex; gap: 0.4rem; }
@@ -354,7 +354,7 @@
     .spinner {
       width: 12px;
       height: 12px;
-      border: 2px solid rgba(255,255,255,0.2);
+      border: 2px solid rgba(0,0,0,0.15);
       border-top-color: currentColor;
       animation: spin 0.7s linear infinite;
       display: inline-block;
@@ -615,7 +615,7 @@
       const chartH = h - 4;
 
       // grid
-      ctx.fillStyle = 'rgba(51,51,51,0.6)';
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
       for (let i = 1; i < 4; i++) {
         const y = (h / 4) * i;
         ctx.fillRect(0, y, w, 1);
