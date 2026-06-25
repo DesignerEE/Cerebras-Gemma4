@@ -510,7 +510,6 @@ async def get_status():
     return {
         "race": {"status": race_manager.status, "results": race_manager.results},
         "news": {"status": news_manager.status, "results": news_manager.results},
-        "headroom": headroom_monitor.latest_snapshot(),
     }
 
 
