@@ -19,6 +19,9 @@ Endpoints:
     GET  /api/news/stream    news SSE events
     GET  /api/headroom/status  current Headroom compression snapshot
     GET  /api/headroom/stream  Headroom SSE events
+    GET  /api/benchmark/memory/insights  aggregate insights from results/
+    GET  /api/benchmark/memory/search   search past benchmark records
+    GET  /api/benchmark/memory/compare  compare two configs
 """
 
 from __future__ import annotations
@@ -42,6 +45,7 @@ import httpx
 from cerebras_race_client import CerebrasRaceClient, CompletionResult
 from news_agents import NewsAgentTeam
 from headroom import HeadroomMonitor
+from benchmark_memory import BenchmarkMemory
 import cfire
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -384,6 +388,7 @@ class NewsManager:
 race_manager = RaceManager()
 news_manager = NewsManager()
 headroom_monitor = HeadroomMonitor()
+benchmark_memory = BenchmarkMemory()
 
 
 @asynccontextmanager
@@ -597,6 +602,24 @@ async def headroom_event_stream():
                 yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
 
     return StreamingResponse(generator(), media_type="text/event-stream")
+
+
+@app.get("/api/benchmark/memory/insights")
+async def benchmark_memory_insights():
+    """Return aggregated insights from past benchmark runs in results/."""
+    return {"ok": True, **benchmark_memory.insights()}
+
+
+@app.get("/api/benchmark/memory/search")
+async def benchmark_memory_search(q: str = ""):
+    """Keyword search over past benchmark configs and phases."""
+    return benchmark_memory.search(q)
+
+
+@app.get("/api/benchmark/memory/compare")
+async def benchmark_memory_compare(a: str, b: str):
+    """Compare two configs by averaging their historical records."""
+    return benchmark_memory.compare(a, b)
 
 
 @app.get("/api/diffusiongemma/stream_test")

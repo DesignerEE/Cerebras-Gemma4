@@ -408,6 +408,7 @@
       <button class="tab active" data-tab="racing">[RACE]</button>
       <button class="tab" data-tab="news">[NEWS]</button>
       <button class="tab" data-tab="headroom">[HEADROOM]</button>
+      <button class="tab" data-tab="memory">[MEMORY]</button>
     </div>
     <div class="status-pill" id="status-pill">
       <div class="status-dot"></div>
@@ -700,6 +701,76 @@
           <div class="sparkline-wrap" style="height:100px;"><canvas id="headroomFrameChart"></canvas></div>
           <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
             <span class="prompt">last frame:</span> <span id="headroom-frame-last">0.00%</span>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- BENCHMARK MEMORY PANEL -->
+  <div id="memory-panel" class="panel-section">
+    <div class="grid">
+      <aside>
+        <div class="panel">
+          <div class="panel-title">ABOUT BENCHMARK MEMORY</div>
+          <p style="margin:0;line-height:1.55;">
+            Context-mode-style indexing over the <code>results/</code> directory.
+            Loads every benchmark JSON, normalizes config shapes, ranks runs by
+            tok/s and req/s, and answers keyword queries without calling external
+            services.
+          </p>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">SEARCH</div>
+          <input id="memory-query" type="text" placeholder="e.g. c16_t200 or tok/s">
+          <button id="memory-btn-search" class="btn-start">SEARCH MEMORY</button>
+          <div id="memory-search-results" style="margin-top:0.5rem;font-size:0.8rem;"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">COMPARE CONFIGS</div>
+          <div class="row">
+            <input id="memory-compare-a" type="text" placeholder="c8_t100">
+            <input id="memory-compare-b" type="text" placeholder="c16_t200">
+          </div>
+          <button id="memory-btn-compare" class="btn-start">COMPARE</button>
+          <div id="memory-compare-results" style="margin-top:0.5rem;font-size:0.8rem;"></div>
+        </div>
+      </aside>
+
+      <main>
+        <div class="panel">
+          <div class="panel-title">INSIGHTS</div>
+          <div id="memory-insights">
+            <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+              <span class="prompt">STATUS:</span> <span id="memory-status">loading...</span>
+            </div>
+            <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+              <span class="prompt">RECORDS:</span> <span id="memory-records">—</span>
+            </div>
+            <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+              <span class="prompt">MODELS:</span> <span id="memory-models">—</span>
+            </div>
+            <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+              <span class="prompt">MEAN TOK/S:</span> <span id="memory-mean-tok">—</span>
+            </div>
+            <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+              <span class="prompt">MEDIAN TOK/S:</span> <span id="memory-median-tok">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">TOP PERFORMERS</div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">TOP TOK/S:</span> <span id="memory-top-tok">—</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">TOP REQ/S:</span> <span id="memory-top-req">—</span>
+          </div>
+          <div class="status-line" style="border-bottom:none;padding:0.2rem 0;">
+            <span class="prompt">TOP SUSTAINED:</span> <span id="memory-top-sustained">—</span>
           </div>
         </div>
       </main>
@@ -1525,6 +1596,72 @@
       headroomEventSource.onerror = () => { console.warn('Headroom stream lost'); headroomEventSource.close(); };
     }
 
+    // --- BENCHMARK MEMORY --------------------------------------------------
+    async function loadBenchmarkInsights() {
+      try {
+        const res = await fetch('/api/benchmark/memory/insights');
+        const data = await res.json();
+        if (!data.ok) {
+          $('memory-status').textContent = data.message || 'error';
+          return;
+        }
+        $('memory-status').textContent = data.status;
+        $('memory-records').textContent = data.total_records || 0;
+        $('memory-models').textContent = (data.models || []).join(', ') || '—';
+        $('memory-mean-tok').textContent = data.summary?.mean_tok_per_sec != null ? data.summary.mean_tok_per_sec.toLocaleString() : '—';
+        $('memory-median-tok').textContent = data.summary?.median_tok_per_sec != null ? data.summary.median_tok_per_sec.toLocaleString() : '—';
+
+        const fmt = r => r ? `${r.config.name} — ${r.tok_per_sec.toLocaleString()} tok/s (${r.phase})` : '—';
+        $('memory-top-tok').textContent = fmt(data.top_tok_per_sec);
+        $('memory-top-req').textContent = data.top_req_per_sec ? `${data.top_req_per_sec.config.name} — ${data.top_req_per_sec.req_per_sec.toLocaleString()} req/s (${data.top_req_per_sec.phase})` : '—';
+        $('memory-top-sustained').textContent = fmt(data.top_sustained_tok_per_sec);
+      } catch (e) {
+        $('memory-status').textContent = 'error: ' + e.message;
+      }
+    }
+
+    async function searchBenchmarkMemory() {
+      const q = $('memory-query').value.trim();
+      if (!q) return;
+      const res = await fetch('/api/benchmark/memory/search?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      const el = $('memory-search-results');
+      if (!data.results || !data.results.length) {
+        el.innerHTML = '<span style="color:var(--muted);">No matches</span>';
+        return;
+      }
+      el.innerHTML = data.results.map(r => `
+        <div style="border-bottom:1px solid var(--border);padding:0.3rem 0;">
+          <strong>${escapeHtml(r.config.name)}</strong> <span style="color:var(--muted);">${r.phase}</span><br>
+          ${r.tok_per_sec.toLocaleString()} tok/s · ${r.req_per_sec.toLocaleString()} req/s · ${r.avg_latency}s lat
+        </div>
+      `).join('');
+    }
+
+    async function compareBenchmarkConfigs() {
+      const a = $('memory-compare-a').value.trim();
+      const b = $('memory-compare-b').value.trim();
+      if (!a || !b) return;
+      const res = await fetch(`/api/benchmark/memory/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
+      const data = await res.json();
+      const el = $('memory-compare-results');
+      if (!data.a || !data.b) {
+        el.innerHTML = '<span style="color:var(--muted);">One or both configs not found</span>';
+        return;
+      }
+      const row = c => `
+        <div style="border-bottom:1px solid var(--border);padding:0.3rem 0;">
+          <strong>${escapeHtml(c.name)}</strong> <span style="color:var(--muted);">(${c.runs} runs)</span><br>
+          ${c.avg_tok_per_sec.toLocaleString()} tok/s · ${c.avg_req_per_sec.toLocaleString()} req/s · ${c.avg_latency}s lat
+        </div>
+      `;
+      el.innerHTML = row(data.a) + row(data.b);
+    }
+
+    $('memory-btn-search').addEventListener('click', searchBenchmarkMemory);
+    $('memory-query').addEventListener('keydown', e => { if (e.key === 'Enter') searchBenchmarkMemory(); });
+    $('memory-btn-compare').addEventListener('click', compareBenchmarkConfigs);
+
     // --- DiffusionGemma4 local test ----------------------------------------
     async function runDiffusionTest(btnId, resultId, logEl, logLabel) {
       const btn = $(btnId);
@@ -1618,6 +1755,7 @@
     });
 
     startHeadroomStream();
+    loadBenchmarkInsights();
 
     // Initialize static views
     renderStrategyMap();
