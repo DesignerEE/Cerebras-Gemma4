@@ -46,6 +46,18 @@ class BenchmarkMemory:
         self.records: list[dict[str, Any]] = []
         self._load()
 
+    @classmethod
+    def from_file(cls, path: Path, data: dict[str, Any] | None = None) -> "BenchmarkMemory":
+        """Create a memory index from a single file (for test uploads)."""
+        mem = object.__new__(cls)
+        mem.results_dir = path.parent
+        mem.records = []
+        if data is None:
+            with path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        mem._load_data(data, path.name)
+        return mem
+
     def _load(self) -> None:
         if not self.results_dir.exists():
             return
@@ -55,43 +67,45 @@ class BenchmarkMemory:
                     data = json.load(f)
             except Exception:
                 continue
+            self._load_data(data, path.name)
 
-            metric = data.get("metric", "tok/s")
-            timestamp = data.get("timestamp") or path.stem
-            model = data.get("model", "unknown")
+    def _load_data(self, data: dict[str, Any], filename: str) -> None:
+        metric = data.get("metric", "tok/s")
+        timestamp = data.get("timestamp") or Path(filename).stem
+        model = data.get("model", "unknown")
 
-            # Sweep points
-            for s in data.get("sweep", []):
-                self.records.append({
-                    "file": path.name,
-                    "timestamp": timestamp,
-                    "model": model,
-                    "metric": metric,
-                    "phase": "sweep",
-                    **_norm_config(s),
-                    "tok_per_sec": _safe_float(s.get("tok_per_sec")),
-                    "req_per_sec": _safe_float(s.get("req_per_sec")),
-                    "avg_latency": _safe_float(s.get("avg_latency")),
-                    "num_requests": s.get("num_requests", 0),
-                })
+        # Sweep points
+        for s in data.get("sweep", []):
+            self.records.append({
+                "file": filename,
+                "timestamp": timestamp,
+                "model": model,
+                "metric": metric,
+                "phase": "sweep",
+                **_norm_config(s),
+                "tok_per_sec": _safe_float(s.get("tok_per_sec")),
+                "req_per_sec": _safe_float(s.get("req_per_sec")),
+                "avg_latency": _safe_float(s.get("avg_latency")),
+                "num_requests": s.get("num_requests", 0),
+            })
 
-            # Sustained race / best config
-            for key in ("race", "best"):
-                r = data.get(key)
-                if not r:
-                    continue
-                self.records.append({
-                    "file": path.name,
-                    "timestamp": timestamp,
-                    "model": model,
-                    "metric": metric,
-                    "phase": "sustained" if key == "race" else "best",
-                    **_norm_config(r),
-                    "tok_per_sec": _safe_float(r.get("tok_per_sec")),
-                    "req_per_sec": _safe_float(r.get("req_per_sec")),
-                    "avg_latency": _safe_float(r.get("avg_latency")),
-                    "num_requests": r.get("num_requests", 0),
-                })
+        # Sustained race / best config
+        for key in ("race", "best"):
+            r = data.get(key)
+            if not r:
+                continue
+            self.records.append({
+                "file": filename,
+                "timestamp": timestamp,
+                "model": model,
+                "metric": metric,
+                "phase": "sustained" if key == "race" else "best",
+                **_norm_config(r),
+                "tok_per_sec": _safe_float(r.get("tok_per_sec")),
+                "req_per_sec": _safe_float(r.get("req_per_sec")),
+                "avg_latency": _safe_float(r.get("avg_latency")),
+                "num_requests": r.get("num_requests", 0),
+            })
 
     def count(self) -> int:
         return len(self.records)

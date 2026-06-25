@@ -737,6 +737,16 @@
           <button id="memory-btn-compare" class="btn-start">COMPARE</button>
           <div id="memory-compare-results" style="margin-top:0.5rem;font-size:0.8rem;"></div>
         </div>
+
+        <div class="panel">
+          <div class="panel-title">TEST RUN UPLOAD</div>
+          <p style="margin:0 0 0.5rem;line-height:1.5;font-size:0.8rem;">
+            Upload a single benchmark result JSON to analyze without saving it.
+          </p>
+          <input id="memory-upload" type="file" accept=".json,application/json" style="font-size:0.75rem;">
+          <button id="memory-btn-upload" class="btn-start" style="margin-top:0.4rem;">ANALYZE UPLOAD</button>
+          <div id="memory-upload-results" style="margin-top:0.5rem;font-size:0.8rem;"></div>
+        </div>
       </aside>
 
       <main>
@@ -1661,6 +1671,41 @@
     $('memory-btn-search').addEventListener('click', searchBenchmarkMemory);
     $('memory-query').addEventListener('keydown', e => { if (e.key === 'Enter') searchBenchmarkMemory(); });
     $('memory-btn-compare').addEventListener('click', compareBenchmarkConfigs);
+
+    async function uploadBenchmarkFile() {
+      const input = $('memory-upload');
+      const el = $('memory-upload-results');
+      if (!input.files || !input.files[0]) {
+        el.innerHTML = '<span style="color:var(--muted);">Select a JSON file first</span>';
+        return;
+      }
+      const file = input.files[0];
+      const form = new FormData();
+      form.append('file', file);
+      setButtonLoading($('memory-btn-upload'), true, 'Analyzing...');
+      try {
+        const res = await fetch('/api/benchmark/memory/test', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.ok) {
+          el.innerHTML = `<span style="color:var(--error);">Error: ${escapeHtml(data.error)}</span>`;
+          return;
+        }
+        const fmt = r => r ? `${r.config.name} — ${r.tok_per_sec.toLocaleString()} tok/s (${r.phase})` : '—';
+        el.innerHTML = `
+          <div><span class="prompt">FILE:</span> ${escapeHtml(data.filename)}</div>
+          <div><span class="prompt">RECORDS:</span> ${data.total_records}</div>
+          <div><span class="prompt">TOP TOK/S:</span> ${fmt(data.top_tok_per_sec)}</div>
+          <div><span class="prompt">TOP REQ/S:</span> ${data.top_req_per_sec ? data.top_req_per_sec.config.name + ' — ' + data.top_req_per_sec.req_per_sec.toLocaleString() + ' req/s' : '—'}</div>
+          <div><span class="prompt">TOP SUSTAINED:</span> ${fmt(data.top_sustained_tok_per_sec)}</div>
+        `;
+      } catch (e) {
+        el.innerHTML = `<span style="color:var(--error);">Upload failed: ${escapeHtml(e.message)}</span>`;
+      } finally {
+        setButtonLoading($('memory-btn-upload'), false, 'Analyze Upload');
+      }
+    }
+
+    $('memory-btn-upload').addEventListener('click', uploadBenchmarkFile);
 
     // --- DiffusionGemma4 local test ----------------------------------------
     async function runDiffusionTest(btnId, resultId, logEl, logLabel) {

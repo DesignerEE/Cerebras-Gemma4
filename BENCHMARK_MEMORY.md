@@ -55,6 +55,16 @@ Compare two configs by averaging their records.
 curl 'http://localhost:8000/api/benchmark/memory/compare?a=c8_t100&b=c16_t200'
 ```
 
+### `POST /api/benchmark/memory/test`
+
+Upload a single benchmark result JSON file for one-off insights. The file is
+parsed in memory and not persisted to disk.
+
+```bash
+curl -X POST -F "file=@results/race_20260620_184409.json" \
+  http://localhost:8000/api/benchmark/memory/test
+```
+
 ## Dashboard
 
 Open the `[MEMORY]` tab in the dashboard to see:
@@ -63,6 +73,7 @@ Open the `[MEMORY]` tab in the dashboard to see:
 - Top tok/s, top req/s, and top sustained config
 - Search box for config names
 - Compare box for head-to-head config comparison
+- File upload box for one-off test-run analysis
 
 ## Files
 

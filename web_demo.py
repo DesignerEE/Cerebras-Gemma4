@@ -22,6 +22,7 @@ Endpoints:
     GET  /api/benchmark/memory/insights  aggregate insights from results/
     GET  /api/benchmark/memory/search   search past benchmark records
     GET  /api/benchmark/memory/compare  compare two configs
+    POST /api/benchmark/memory/test     upload a result JSON for one-off insights
 """
 
 from __future__ import annotations
@@ -36,7 +37,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -620,6 +621,22 @@ async def benchmark_memory_search(q: str = ""):
 async def benchmark_memory_compare(a: str, b: str):
     """Compare two configs by averaging their historical records."""
     return benchmark_memory.compare(a, b)
+
+
+@app.post("/api/benchmark/memory/test")
+async def benchmark_memory_test(file: UploadFile = File(...)):
+    """Upload a single benchmark result JSON and get insights for it.
+
+    The file is not persisted to disk; it is parsed in memory and discarded.
+    """
+    import json
+    try:
+        contents = await file.read()
+        data = json.loads(contents.decode("utf-8"))
+        mem = BenchmarkMemory.from_file(Path(file.filename or "upload.json"), data)
+        return {"ok": True, "filename": file.filename, **mem.insights()}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
 
 
 @app.get("/api/diffusiongemma/stream_test")
