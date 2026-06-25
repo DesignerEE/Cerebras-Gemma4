@@ -1336,7 +1336,14 @@
       if (newsEventSource) newsEventSource.close();
       newsEventSource = new EventSource('/api/news/stream');
       newsEventSource.onmessage = e => handleNewsEvent(JSON.parse(e.data));
-      newsEventSource.onerror = () => { radioLog(newsLogsEl, 'Pit Wall', 'Radio link lost', 'error'); newsEventSource.close(); };
+      newsEventSource.onerror = () => { radioLog(newsLogsEl, 'Pit Wall', 'Radio link lost', 'error'); if (newsEventSource) { newsEventSource.close(); newsEventSource = null; } };
+    }
+
+    function closeNewsStream() {
+      if (newsEventSource) {
+        newsEventSource.close();
+        newsEventSource = null;
+      }
     }
 
     function handleNewsEvent(msg) {
@@ -1347,6 +1354,9 @@
         $('news-btn-stop').disabled = !isRunning;
         setButtonLoading($('news-btn-start'), isRunning, 'Deploying...');
         if (!isRunning) setButtonLoading($('news-btn-start'), false, 'Deploy Scouts');
+        if (msg.state === 'done' || msg.state === 'stopped' || msg.state === 'error') {
+          closeNewsStream();
+        }
       } else if (msg.type === 'log') {
         radioLog(newsLogsEl, msg.who || 'Pit Wall', msg.text, msg.level);
       } else if (msg.type === 'team_start') {
@@ -1400,6 +1410,8 @@
         const data = await res.json();
         if (data.ok) {
           SoundEngine.abortTone();
+          closeNewsStream();
+          setState('stopped', 'Stopped by user');
           radioLog(newsLogsEl, 'Pit Wall', 'Abort called');
           setButtonLoading($('news-btn-start'), false, 'Deploy Scouts');
           $('news-btn-start').disabled = false;
