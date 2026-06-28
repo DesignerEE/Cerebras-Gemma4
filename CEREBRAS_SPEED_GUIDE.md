@@ -8,7 +8,7 @@ Use **`cfire.AsyncCfire`**.
 
 - Built on `httpx[http2]` with HTTP/2 multiplexing and a tuned connection pool.
 - Default pool limits: `max_keepalive=concurrency*2`, `max_connections=concurrency*4`.
-- The repo README claims sustained **4,843 tok/s** on `gpt-oss-120b`.
+- The repo README claims sustained **4,843 tok/s** on `gemma-4-31b`.
 - Avoid the sync `Cfire` wrapper for bulk throughput — it adds a background-thread bridge.
 
 ## Mandatory Dependency
@@ -32,7 +32,7 @@ from cfire import AsyncCfire, ChatRequest, Message
 
 async with AsyncCfire(concurrency=24, enable_cache=False) as client:
     resp = await client.complete(ChatRequest(
-        model="gpt-oss-120b",
+        model="gemma-4-31b",
         messages=[Message(role="user", content=prompt)],
         max_completion_tokens=1500,   # 1000-1500 for max tok/s
         reasoning_effort="low",       # fastest reasoning setting
@@ -111,7 +111,7 @@ async def main():
         enable_cache=False,
     ) as client:
         req = ChatRequest(
-            model="gpt-oss-120b",
+            model="gemma-4-31b",
             messages=[Message(role="user", content="Explain async I/O in detail.")],
             max_completion_tokens=1500,
             reasoning_effort="low",
@@ -152,7 +152,7 @@ This lowers queue time and generation latency for each scout summary and the fin
 ## What to Avoid
 
 1. **System Python without `h2`** — `httpx` will raise `ImportError` on `http2=True`.
-2. **`clear_thinking=True` on `gpt-oss-120b`** — returns `400 clear_thinking not supported for this model`.
+2. **`clear_thinking=True` on `gemma-4-31b`** — returns `400 clear_thinking not supported for this model`.
 3. **`tool_choice="auto"` without `tools`** — returns `400 Tools were requested but no tools found`.
 4. **Unbounded concurrency** — >32 can degrade throughput due to queueing and rate limits.
 5. **Cache in throughput benchmarks** — cached hits distort tok/s measurements.

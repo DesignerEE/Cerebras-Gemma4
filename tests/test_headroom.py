@@ -10,7 +10,7 @@ from headroom import Meter, HeadroomMonitor, tail_log
 
 
 SAMPLE_PERF_LINE = (
-    "2026-06-25 07:13:45,123 PERF req_id=abc model=gpt-oss-120b "
+    "2026-06-25 07:13:45,123 PERF req_id=abc model=gemma-4-31b "
     "tok_before=60229 tok_after=57678 tok_saved=2551 "
     "cache_read=120 cache_write=5 cache_hit_pct=98 opt_ms=45 total_ms=120 "
     "transforms=text,smart_crusher"

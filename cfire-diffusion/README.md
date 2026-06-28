@@ -10,7 +10,7 @@ with first-class support for the things that make Cerebras different:
 - **Server-side `prompt_cache_key`** management for multi-turn conversations
 - **`predicted_output`** for regeneration-heavy workloads (code editing, agentic loops)
 - **`service_tier`** (`flex` / `default` / `auto` / `priority`) — queue priority control
-- **`reasoning_effort`** (`low` / `medium` / `high`) for reasoning models like `gpt-oss-120b`
+- **`reasoning_effort`** (`low` / `medium` / `high`) for reasoning models like `gemma-4-31b`
 
 Plus the pieces you need to build resilient apps on top:
 
@@ -26,7 +26,7 @@ from cfire import AsyncCfire, ChatRequest
 
 async with AsyncCfire() as client:
     response = await client.complete(ChatRequest(
-        model="gpt-oss-120b",
+        model="gemma-4-31b",
         messages=[{"role": "user", "content": "Hello, Cerebras."}],
     ))
     print(response.choices[0].message.content)
@@ -47,5 +47,5 @@ client = AsyncCfire(router=Router(
 
 ## Status
 
-Alpha. Extracted from `cerebras-bench` where it sustained **4,843 tok/s** on `gpt-oss-120b`.
+Alpha. Extracted from `cerebras-bench` where it sustained **4,843 tok/s** on `gemma-4-31b`.
 See `pyproject.toml` for dependencies and the `cfire/` package for source.

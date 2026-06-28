@@ -14,6 +14,7 @@ from typing import Any, AsyncIterator, Callable
 import pytest
 
 from cfire.backends import Backend
+from cfire.config import DEFAULT_MODEL
 from cfire.models import (
     ChatRequest,
     ChatResponse,
@@ -145,7 +146,7 @@ def fake_backend() -> FakeBackend:
 @pytest.fixture
 def canned_request() -> ChatRequest:
     return ChatRequest(
-        model="gpt-oss-120b",
+        model=DEFAULT_MODEL,
         messages=[Message(role="user", content="What is 2+2?")],
         max_completion_tokens=100,
     )

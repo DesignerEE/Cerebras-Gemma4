@@ -15,14 +15,13 @@ if not API_KEY:
     raise RuntimeError(
         "CEREBRAS_API_KEY not set. Export it before running this script."
     )
-MODEL = "gpt-oss-120b"
+MODEL = "gemma-4-31b"
 BASE_URL = "https://api.cerebras.ai/v1"
 
 OPTIMAL_CONFIG = {
     "max_completion_tokens": 100,
     "temperature": 0.3,
     "top_p": 1,
-    "reasoning_effort": "low",
     "stream": False,
 }
 
@@ -40,7 +39,7 @@ TEST_PROMPTS = [
 
 def sync_smoke_test(n=2):
     from cerebras.cloud.sdk import Cerebras
-    client = Cerebras(api_key=API_KEY)
+    client = Cerebras(api_key=API_KEY, base_url="https://api.cerebras.ai")
 
     print("\n" + "=" * 50)
     print("  SYNC SMOKE TEST")
@@ -54,7 +53,6 @@ def sync_smoke_test(n=2):
             model=MODEL,
             max_completion_tokens=50,
             temperature=0.3,
-            reasoning_effort="low",
             stream=False,
         )
         elapsed = time.perf_counter() - start

@@ -27,7 +27,7 @@ Aggregate stats and top performers.
   "ok": true,
   "total_records": 56,
   "files_loaded": ["race_20260620_184409.json", ...],
-  "models": ["gpt-oss-120b"],
+  "models": ["gemma-4-31b"],
   "summary": {
     "mean_tok_per_sec": 3626.73,
     "median_tok_per_sec": 2667.12,

@@ -13,6 +13,7 @@ from .config import (
     CEREBRAS_BASE_URL,
     COMPRESS_THRESHOLD_BYTES,
     DEFAULT_CONCURRENCY,
+    DEFAULT_MODEL,
     DIFFUSIONGEMMA_API_KEY,
     DIFFUSIONGEMMA_BASE_URL,
     DIFFUSIONGEMMA_MODEL,
@@ -202,7 +203,7 @@ class CerebrasBackend(OpenAICompatibleBackend):
         return CEREBRAS_BASE_URL
 
     def _default_model(self) -> str:
-        return "gpt-oss-120b"
+        return DEFAULT_MODEL
 
     @classmethod
     def _parse_time_info(cls, data: dict[str, Any]) -> Any:

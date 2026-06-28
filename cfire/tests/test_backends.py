@@ -16,6 +16,7 @@ import time
 import pytest
 
 from cfire.backends import Backend, CerebrasBackend, DiffusionGemmaBackend, MockBackend
+from cfire.config import DEFAULT_MODEL
 from cfire.models import ChatRequest, Message
 
 
@@ -51,7 +52,7 @@ def test_parse_response_happy_path():
     """Full Cerebras response shape with usage + time_info."""
     data = {
         "id": "chat-xyz",
-        "model": "gpt-oss-120b",
+        "model": DEFAULT_MODEL,
         "choices": [
             {
                 "index": 0,
@@ -74,7 +75,7 @@ def test_parse_response_happy_path():
     }
     r = CerebrasBackend._parse_response(data, latency=0.05, compressed=False)
     assert r.id == "chat-xyz"
-    assert r.model == "gpt-oss-120b"
+    assert r.model == DEFAULT_MODEL
     assert r.text == "4"
     assert r.usage.prompt_tokens == 10
     assert r.usage.completion_tokens == 1

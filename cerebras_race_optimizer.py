@@ -39,7 +39,7 @@ except Exception:
     pass
 
 API_KEY = os.environ.get("CEREBRAS_API_KEY")
-MODEL = "gpt-oss-120b"
+MODEL = "gemma-4-31b"
 BASE_URL = "https://api.cerebras.ai/v1"
 
 # Cerebras published limits (competition ceiling)

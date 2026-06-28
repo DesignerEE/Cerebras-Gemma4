@@ -23,6 +23,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from .config import DEFAULT_MODEL
+
 
 # --- Request side --------------------------------------------------------
 
@@ -30,7 +32,7 @@ Role = Literal["system", "developer", "user", "assistant", "tool"]
 
 
 class Message(BaseModel):
-    """A single chat message. `developer` replaces `system` for gpt-oss-120b."""
+    """A single chat message. `developer` replaces `system` for reasoning models."""
     model_config = ConfigDict(extra="allow")
     role: Role
     content: str
@@ -56,7 +58,7 @@ class ResponseFormat(BaseModel):
 class ChatRequest(BaseModel):
     """What the user sends. Maps 1:1 to the Cerebras /chat/completions body."""
     model_config = ConfigDict(extra="allow")
-    model: str = "gpt-oss-120b"
+    model: str = DEFAULT_MODEL
     messages: list[Message]
     max_completion_tokens: int = 1000
     temperature: float = 0.3

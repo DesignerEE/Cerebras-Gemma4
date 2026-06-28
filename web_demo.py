@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import random
 import time
 import traceback
@@ -38,15 +39,18 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
 import httpx
 
 from cerebras_race_client import CerebrasRaceClient, CompletionResult
 from news_agents import NewsAgentTeam
 from headroom import HeadroomMonitor
 from benchmark_memory import BenchmarkMemory
+from vision_ops import VisionOpsAgent
 import cfire
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -407,6 +411,39 @@ app = FastAPI(title="Cerebras Racing Demo", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return JSON for multipart/form validation failures instead of default plain text."""
+    return JSONResponse(
+        status_code=422,
+        content={"ok": False, "error": "Invalid request", "detail": exc.errors()},
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Ensure HTTP exceptions (404, 405, etc.) are JSON for API paths."""
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"ok": False, "error": exc.detail},
+        )
+    # Let non-API paths fall back to the default behaviour
+    raise exc
+
+
+@app.exception_handler(Exception)
+async def catchall_exception_handler(request: Request, exc: Exception):
+    """Last-resort JSON error for API routes so the UI never gets HTML 500s."""
+    traceback.print_exc()
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": f"Internal server error: {exc}"},
+        )
+    raise exc
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     return HTMLResponse(content=(STATIC_DIR / "index.html").read_text())
@@ -709,6 +746,70 @@ async def stream_test_diffusiongemma():
     return StreamingResponse(generator(), media_type="text/event-stream")
 
 
+# --- VisionOps endpoint ----------------------------------------------------
+
+VISION_DEMO_RESPONSE = {
+    "summary": "Demo mode — Cerebras API key not detected.",
+    "severity": "warning",
+    "root_cause": "No live model call was made. Set CEREBRAS_API_KEY to enable Gemma 4 31B vision analysis.",
+    "actions": [
+        {
+            "name": "Scale api-gateway",
+            "description": "Increase replica count for the api-gateway deployment",
+            "command": "kubectl scale deployment api-gateway --replicas=5",
+            "safe_to_run": False,
+        },
+        {
+            "name": "Create incident ticket",
+            "description": "File a P1 ticket with the on-call rotation",
+            "command": "echo 'P1: api-gateway latency spike' | ticket-tool create",
+            "safe_to_run": False,
+        },
+    ],
+}
+
+
+@app.post("/api/vision/analyze")
+async def vision_analyze(file: UploadFile = File(...)):
+    """Analyze an uploaded screenshot with the VisionOps agent."""
+    from cfire.exceptions import AuthError, BadRequestError
+
+    try:
+        image_bytes = await file.read()
+        if not image_bytes:
+            return JSONResponse({"ok": False, "error": "Empty file"}, status_code=400)
+
+        # Demo fallback if no API key is configured
+        if not os.environ.get("CEREBRAS_API_KEY"):
+            return JSONResponse({"ok": True, "diagnosis": VISION_DEMO_RESPONSE, "demo": True})
+
+        agent = VisionOpsAgent()
+        diagnosis = await agent.analyze(
+            image_bytes,
+            mime_type=file.content_type or "image/png",
+        )
+        return JSONResponse({"ok": True, "diagnosis": diagnosis.model_dump(), "demo": False})
+    except (AuthError, BadRequestError) as e:
+        # Auth/model errors during hackathon judging — serve demo so the UI stays alive
+        traceback.print_exc()
+        return JSONResponse({"ok": True, "diagnosis": VISION_DEMO_RESPONSE, "demo": True, "note": f"Live model unavailable ({e}); showing demo response."})
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
 if __name__ == "__main__":
+    import argparse
+    import os
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    parser = argparse.ArgumentParser(description="VisionOps / Cerebras dashboard")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("PORT", "8000")),
+        help="Port to bind on (default: 8000, or PORT env var)",
+    )
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind on")
+    args = parser.parse_args()
+    uvicorn.run(app, host=args.host, port=args.port)

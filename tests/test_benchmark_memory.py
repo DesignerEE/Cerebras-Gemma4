@@ -14,7 +14,7 @@ def sample_results(tmp_path: Path):
     results_dir.mkdir()
     (results_dir / "race_1.json").write_text(json.dumps({
         "metric": "tok/s",
-        "model": "gpt-oss-120b",
+        "model": "gemma-4-31b",
         "timestamp": "2026-06-20T12:00:00",
         "sweep": [
             {"config": {"name": "c8_t100", "concurrency": 8, "max_completion_tokens": 100},
@@ -27,7 +27,7 @@ def sample_results(tmp_path: Path):
     }))
     (results_dir / "race_2.json").write_text(json.dumps({
         "metric": "tok/s",
-        "model": "gpt-oss-120b",
+        "model": "gemma-4-31b",
         "timestamp": "2026-06-21T12:00:00",
         "sweep": [
             {"config": {"name": "c8_t100", "concurrency": 8, "max_completion_tokens": 100},

@@ -3,3 +3,14 @@ __pycache__/
 *.pyc
 results/
 *.log
+.env
+.coverage
+.coverage.*
+**/.coverage
+**/.coverage.*
+.pytest_cache/
+htmlcov/
+demo_shots/
+demo_video.mp4
+demo_assets/
+

@@ -13,7 +13,7 @@ Env vars:
     CFIRE_LOCAL_BASE_URL        default http://127.0.0.1:8123
     CFIRE_CDN_BASE_URL          no default (CDNBackend disabled if unset)
     CFIRE_REDIS_URL             no default (RedisCache disabled if unset)
-    CFIRE_MODEL                 default gpt-oss-120b
+    CFIRE_MODEL                 default gemma-4-31b
     CFIRE_CONCURRENCY           default 16 (benchmark-measured sweet spot)
     CFIRE_REQ_PER_MIN           default 1000 (Developer tier)
     CFIRE_TOK_PER_MIN           default 1_000_000 (Developer tier)
@@ -64,7 +64,7 @@ DIFFUSIONGEMMA_API_KEY = os.environ.get("CFIRE_DIFFUSIONGEMMA_API_KEY", "")
 
 # --- Defaults ------------------------------------------------------------
 
-DEFAULT_MODEL = os.environ.get("CFIRE_MODEL", "gpt-oss-120b")
+DEFAULT_MODEL = os.environ.get("CFIRE_MODEL", "gemma-4-31b")
 DEFAULT_CONCURRENCY = int(os.environ.get("CFIRE_CONCURRENCY", "16"))
 DEFAULT_REQ_PER_MIN = float(os.environ.get("CFIRE_REQ_PER_MIN", "1000"))
 DEFAULT_TOK_PER_MIN = float(os.environ.get("CFIRE_TOK_PER_MIN", "1000000"))

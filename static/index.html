@@ -3,24 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HEADROOM REGEN DASHBOARD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <title>VisionOps — Cerebras × Google DeepMind</title>
   <style>
     :root {
       --bg: #F8F8F8;
-      --primary: #4ECDC4;
-      --active: #00FF41;
-      --highlight: #FFD700;
-      --compression: #9B59B6;
-      --muted: #666666;
-      --text: #1A1A1A;
+      --surface: #FFFFFF;
+      --surface-raised: #F2F2F2;
       --border: #D0D0D0;
+      --primary: #4ECDC4;
+      --primary-dim: #3BA99E;
+      --secondary: #FF4D6D;
+      --tertiary: #FFD700;
+      --success: #00FF41;
+      --warning: #FFB800;
+      --text: #1A1A1A;
+      --text-muted: #666666;
       --error: #FF2800;
+      --rounded-sm: 4px;
+      --rounded-md: 8px;
+      --rounded-lg: 12px;
+      /* backwards-compatible aliases */
+      --active: var(--success);
+      --highlight: var(--tertiary);
+      --compression: #9B59B6;
+      --muted: var(--text-muted);
     }
     * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      font-family: Menlo, Monaco, Consolas, 'Roboto Mono', monospace;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
       line-height: 1.4;
@@ -111,7 +126,7 @@
     .panel {
       border: 1px solid var(--border);
       padding: 0.8rem;
-      background: var(--bg);
+      background: var(--surface);
     }
     .panel-title {
       margin: 0 0 0.6rem;
@@ -356,7 +371,7 @@
     }
     input, select, textarea {
       width: 100%;
-      background: var(--bg);
+      background: var(--surface-raised);
       border: 1px solid var(--border);
       color: var(--text);
       padding: 0.45rem;
@@ -389,6 +404,8 @@
     .btn-start:hover:not(:disabled) { background: var(--active); color: #000; }
     .btn-stop { border-color: var(--error); color: var(--error); }
     .btn-stop:hover:not(:disabled) { background: var(--error); color: #fff; }
+    .btn-secondary { border-color: var(--border); color: var(--text-muted); background: transparent; }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 
     .angle-checkboxes {
       display: flex;
@@ -467,10 +484,14 @@
   <div id="start-lights"></div>
 
   <header>
-    <div class="brand"><h1>HEADROOM REGEN DASHBOARD</h1></div>
+    <div class="brand">
+      <h1>VisionOps</h1>
+      <div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:2px;">Cerebras × Google DeepMind — Image-Aware Agent Era</div>
+    </div>
     <div class="tabs">
       <button class="tab active" data-tab="racing">[RACE]</button>
       <button class="tab" data-tab="news">[NEWS]</button>
+      <button class="tab" data-tab="vision">[VISION]</button>
     </div>
     <div class="status-pill" id="status-pill">
       <div class="status-dot"></div>
@@ -675,6 +696,55 @@
         <div class="panel">
           <div class="panel-title">SCOUT REPORTS</div>
           <div id="news-scouts"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+
+  <!-- VISION PANEL -->
+  <div id="vision-panel" class="panel-section">
+    <div class="grid" style="grid-template-columns: 1fr 1fr;">
+      <aside>
+        <div class="panel">
+          <div class="panel-title">Image Input</div>
+          <p style="margin:0 0 0.6rem;color:var(--text-muted);font-size:0.85rem;line-height:1.5;">
+            Upload a dashboard screenshot, alert, or architecture diagram. VisionOps will interpret the visual state and suggest the next action.
+          </p>
+          <div id="vision-drop" style="border:2px dashed var(--border);border-radius:var(--rounded-md);padding:2rem;text-align:center;color:var(--text-muted);cursor:pointer;background:var(--surface-raised);">
+            <div style="font-size:2rem;margin-bottom:0.5rem;">🖼️</div>
+            <div>Drop screenshot here or click to upload</div>
+            <input id="vision-file" type="file" accept="image/*" style="display:none;">
+          </div>
+          <div id="vision-preview" style="margin-top:0.8rem;display:none;">
+            <img id="vision-img" style="max-width:100%;border:1px solid var(--border);border-radius:4px;" alt="Preview">
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Agent Log</div>
+          <div id="vision-logs" class="terminal-log"></div>
+        </div>
+      </aside>
+      <main>
+        <div class="panel">
+          <div class="panel-title">About VisionOps</div>
+          <p style="margin:0 0 0.5rem;line-height:1.55;">
+            The Vision tab is the image-aware command center. It is being prepared for the hackathon theme:
+            agents that navigate UIs, interpret documents and diagrams, and act on visual input.
+          </p>
+          <p style="margin:0;line-height:1.55;color:var(--text-muted);">
+            Wire this panel to Gemma 4 31B on Cerebras Inference to stream vision reasoning at ~1,500 tokens per second.
+          </p>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Diagnosis</div>
+          <pre id="vision-diagnosis" class="synthesis-pre">Upload a screenshot to begin analysis.</pre>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Suggested Actions</div>
+          <div id="vision-actions" style="display:flex;flex-direction:column;gap:0.5rem;">
+            <div style="padding:0.7rem;border:1px solid var(--border);color:var(--text-muted);font-size:0.85rem;">No actions yet.</div>
+          </div>
         </div>
       </main>
     </div>
@@ -1025,6 +1095,8 @@
 
     // --- GAUGES ---
     const GAUGE_ARC_LEN = 377;
+    const LAT_GAUGE_MAX = 1.0;  // tuned for gemma-4-31b (~0.3-0.6s)
+    const TOK_GAUGE_MAX = 16000; // covers historical peak ~15,791 tok/s
     function setGauge(idPrefix, value, max, inverse=false) {
       const clamped = Math.max(0, Math.min(value || 0, max));
       const pct = inverse ? (1 - clamped / max) : (clamped / max);
@@ -1046,8 +1118,8 @@
 
     function updateGauges(req, tok, lat) {
       setGauge('gauge-req', req || 0, 16.67);
-      setGauge('gauge-tok', tok || 0, 16667);
-      setGauge('gauge-lat', lat || 0, 3, true);
+      setGauge('gauge-tok', tok || 0, TOK_GAUGE_MAX);
+      setGauge('gauge-lat', lat || 0, LAT_GAUGE_MAX, true);
     }
 
     let gaugePulseInterval = null;
@@ -1060,7 +1132,7 @@
       gaugePulseInterval = setInterval(() => {
         if (!gaugePulsing) return;
         const sweep = (Math.sin(((Date.now() - start) / period) * Math.PI * 2) + 1) / 2;
-        updateGauges(sweep * 16.67, sweep * 16667, (1 - sweep) * 3);
+        updateGauges(sweep * 16.67, sweep * TOK_GAUGE_MAX, (1 - sweep) * LAT_GAUGE_MAX);
         $('gauge-req-val').textContent = label;
         $('gauge-tok-val').textContent = label;
         $('gauge-lat-val').textContent = label;
@@ -1165,7 +1237,7 @@
       } else if (msg.type === 'log') {
         radioLog(logsEl, 'Engineer', msg.text, msg.level);
       } else if (msg.type === 'request') {
-        requestTimes.push({ t: Date.now() / 1000, tokens: msg.tokens || 0 });
+        requestTimes.push({ t: Date.now() / 1000, tokens: msg.tokens || 0, latency: msg.latency || 0 });
         if (msg.error) radioLog(logsEl, 'Driver', `Error on lap ${msg.idx}: ${msg.error}`, 'error');
         updateRollingTelemetry();
       } else if (msg.type === 'sweep_complete') {
@@ -1195,7 +1267,9 @@
       requestTimes = recent;
       const reqPerSec = recent.length / window;
       const tokPerSec = recent.reduce((a, b) => a + b.tokens, 0) / window;
-      updateGauges(reqPerSec, tokPerSec, null);
+      const lats = recent.map(r => r.latency).filter(l => l > 0);
+      const avgLat = lats.length ? lats.reduce((a, b) => a + b, 0) / lats.length : 0;
+      updateGauges(reqPerSec, tokPerSec, avgLat);
       const intensity = Math.min(1, Math.max(0.2, reqPerSec / 16.67));
       SoundEngine.setEngineIntensity(intensity);
       const elapsed = now - raceStartTime;
@@ -1337,8 +1411,11 @@
     const newsLogsEl = $('news-logs');
     let newsEventSource = null;
     const laneMap = { 'latest breaking news': 0, 'technical details analysis': 1, 'market and industry reaction': 2 };
+    const laneProgress = { 0: 0, 1: 0, 2: 0, 3: 0 };
+    const laneIntervals = {};
 
     function setLaneProgress(lane, pct) {
+      laneProgress[lane] = pct;
       const barEl = $(`lane-${lane}-bar`);
       if (barEl) barEl.textContent = renderBlockBar(pct, 100, 16);
       const pctEl = $(`lane-${lane}-pct`);
@@ -1346,6 +1423,28 @@
         const status = pct >= 100 ? 'DONE' : pct > 0 ? 'RUNNING' : 'IDLE';
         pctEl.innerHTML = `<span class="status-${status.toLowerCase()}">[${status}]</span>`;
       }
+    }
+
+    function startLaneAnimation(lane, targetPct = 95, speed = 1.5) {
+      stopLaneAnimation(lane);
+      laneIntervals[lane] = setInterval(() => {
+        if (laneProgress[lane] < targetPct) {
+          setLaneProgress(lane, Math.min(targetPct, laneProgress[lane] + speed));
+        } else {
+          stopLaneAnimation(lane);
+        }
+      }, 80);
+    }
+
+    function stopLaneAnimation(lane) {
+      if (laneIntervals[lane]) {
+        clearInterval(laneIntervals[lane]);
+        delete laneIntervals[lane];
+      }
+    }
+
+    function stopAllLaneAnimations() {
+      Object.keys(laneIntervals).forEach(lane => stopLaneAnimation(parseInt(lane)));
     }
 
     function renderNewsResults(results) {
@@ -1388,6 +1487,7 @@
     }
 
     function handleNewsEvent(msg) {
+      try {
       if (msg.type === 'status') {
         setState(msg.state, msg.message);
         const isRunning = msg.state === 'running';
@@ -1397,6 +1497,15 @@
         if (!isRunning) setButtonLoading($('news-btn-start'), false, 'Deploy Scouts');
         if (msg.state === 'done' || msg.state === 'stopped' || msg.state === 'error') {
           closeNewsStream();
+          stopAllLaneAnimations();
+          if (msg.state === 'done') {
+            [0,1,2,3].forEach(i => setLaneProgress(i, 100));
+            // Final results fetch — ensures synthesis renders even if team_done was missed
+            fetch('/api/status')
+              .then(r => r.json())
+              .then(data => renderNewsResults(data.news.results))
+              .catch(e => console.error('Final results fetch failed:', e));
+          }
         }
       } else if (msg.type === 'log') {
         radioLog(newsLogsEl, msg.who || 'Pit Wall', msg.text, msg.level);
@@ -1404,26 +1513,47 @@
         radioLog(newsLogsEl, 'Pit Wall', `Deploying scouts for: ${msg.query}`);
         $('news-synthesis').textContent = 'Scouts are searching RSS feeds...';
         $('news-scouts').innerHTML = '';
+        stopAllLaneAnimations();
         [0,1,2,3].forEach(i => setLaneProgress(i, 0));
       } else if (msg.type === 'scout_start') {
         radioLog(newsLogsEl, 'Scout', `${msg.angle} leaving pit lane`);
+        const lane = laneMap[msg.angle];
+        if (lane !== undefined) startLaneAnimation(lane);
       } else if (msg.type === 'scout_done') {
         radioLog(newsLogsEl, 'Scout', `${msg.angle} report ready (${msg.sources || 0} sources)`);
         const lane = laneMap[msg.angle];
-        if (lane !== undefined) setLaneProgress(lane, 100);
+        if (lane !== undefined) { stopLaneAnimation(lane); setLaneProgress(lane, 100); }
       } else if (msg.type === 'scout_error') {
         radioLog(newsLogsEl, 'Scout', `${msg.angle} DNF: ${msg.error}`, 'error');
+        const lane = laneMap[msg.angle];
+        if (lane !== undefined) stopLaneAnimation(lane);
       } else if (msg.type === 'commander_start') {
         radioLog(newsLogsEl, 'Commander', 'Synthesizing scout reports');
-        setLaneProgress(3, 50);
+        startLaneAnimation(3, 95, 2.0);
       } else if (msg.type === 'commander_done') {
         radioLog(newsLogsEl, 'Commander', 'Synthesis complete');
+        stopLaneAnimation(3);
         setLaneProgress(3, 100);
       } else if (msg.type === 'team_done') {
         radioLog(newsLogsEl, 'Pit Wall', `Chequered flag — ${msg.elapsed.toFixed(1)}s`);
-        fetch('/api/status').then(r => r.json()).then(data => renderNewsResults(data.news.results));
+        stopAllLaneAnimations();
+        [0,1,2,3].forEach(i => setLaneProgress(i, 100));
+        $('news-synthesis').textContent = 'Loading synthesis...';
+        fetch('/api/status')
+          .then(r => r.json())
+          .then(data => renderNewsResults(data.news.results))
+          .catch(e => {
+            console.error('Failed to fetch news results:', e);
+            radioLog(newsLogsEl, 'Pit Wall', 'Failed to load synthesis: ' + e.message, 'error');
+            $('news-synthesis').textContent = 'Failed to load synthesis. Check console.';
+          });
       } else if (msg.type === 'error') {
         radioLog(newsLogsEl, 'Pit Wall', msg.error, 'error');
+        stopAllLaneAnimations();
+      }
+      } catch (e) {
+        console.error('handleNewsEvent error:', e, 'msg:', msg);
+        radioLog(newsLogsEl, 'Pit Wall', 'UI handler error: ' + e.message, 'error');
       }
     }
 
@@ -1452,6 +1582,7 @@
         if (data.ok) {
           SoundEngine.abortTone();
           closeNewsStream();
+          stopAllLaneAnimations();
           setState('stopped', 'Stopped by user');
           radioLog(newsLogsEl, 'Pit Wall', 'Abort called');
           setButtonLoading($('news-btn-start'), false, 'Deploy Scouts');
@@ -1506,7 +1637,7 @@
         }
         setGauge('gauge-req', 1, 2);
         setGauge('gauge-tok', data.tok_per_sec, 100);
-        setGauge('gauge-lat', data.elapsed_ms / 1000, 10, true);
+        setGauge('gauge-lat', data.elapsed_ms / 1000, LAT_GAUGE_MAX, true);
         const counter = $('diffusion-counter');
         const bar = $('diffusion-bar');
         if (counter) counter.textContent = `${data.tokens} TOK @ ${data.tok_per_sec} tok/s (${data.elapsed_ms}ms)`;
@@ -1559,6 +1690,87 @@
       }
     });
 
+
+
+    // --- VISION TAB ---
+    const visionLogsEl = $('vision-logs');
+    const dropZone = $('vision-drop');
+    const visionFile = $('vision-file');
+    const visionPreview = $('vision-preview');
+    const visionImg = $('vision-img');
+    const visionDiagnosis = $('vision-diagnosis');
+    const visionActions = $('vision-actions');
+
+    dropZone.addEventListener('click', () => visionFile.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--primary)'; });
+    dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'var(--border)'; });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.style.borderColor = 'var(--border)';
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) handleVisionImage(file);
+    });
+    visionFile.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) handleVisionImage(file);
+    });
+
+    async function handleVisionImage(file) {
+      const url = URL.createObjectURL(file);
+      visionImg.src = url;
+      visionPreview.style.display = 'block';
+      visionDiagnosis.textContent = 'Analyzing visual state...';
+      visionActions.innerHTML = '<div style="padding:0.7rem;border:1px solid var(--border);color:var(--text-muted);font-size:0.85rem;">Waiting for diagnosis.</div>';
+      radioLog(visionLogsEl, 'Vision', `Screenshot loaded: ${file.name} (${(file.size/1024).toFixed(1)} KB)`);
+
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res = await fetch('/api/vision/analyze', { method: 'POST', body: formData });
+        let data;
+        try {
+          data = await res.json();
+        } catch (parseErr) {
+          const text = await res.text();
+          throw new Error(`Server returned ${res.status}: ${text.slice(0, 200)}`);
+        }
+        if (!data.ok) {
+          radioLog(visionLogsEl, 'Vision', 'Analysis failed: ' + (data.error || 'unknown'), 'error');
+          visionDiagnosis.textContent = 'Error: ' + (data.error || 'unknown');
+          visionActions.innerHTML = '';
+          return;
+        }
+        const d = data.diagnosis;
+        const modeLabel = data.demo ? ' (demo mode)' : '';
+        radioLog(visionLogsEl, 'Vision', `Gemma 4 31B vision analysis complete${modeLabel}`, 'info');
+        visionDiagnosis.textContent = `${d.summary}\nSeverity: ${d.severity.toUpperCase()}${d.root_cause ? '\nRoot cause: ' + d.root_cause : ''}`;
+        if (d.actions && d.actions.length) {
+          visionActions.innerHTML = d.actions.map((a, i) => `
+            <div style="padding:0.7rem;border:1px solid var(--border);border-radius:var(--rounded-sm);">
+              <div style="font-weight:600;margin-bottom:0.3rem;">${escapeHtml(a.name)}</div>
+              <div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:0.5rem;">${escapeHtml(a.description)}</div>
+              <code style="display:block;background:var(--bg);padding:0.4rem;border-radius:var(--rounded-sm);font-family:var(--font-mono);font-size:0.75rem;color:var(--primary);margin-bottom:0.5rem;">${escapeHtml(a.command)}</code>
+              <button class="${a.safe_to_run ? 'btn-start' : 'btn-secondary'} vision-action" data-action="run" data-index="${i}" data-name="${escapeHtml(a.name)}" data-safe="${a.safe_to_run}" style="width:auto;padding:0.4rem 0.8rem;font-size:0.75rem;">${a.safe_to_run ? 'Run' : 'Simulate'} ${escapeHtml(a.name)}</button>
+            </div>
+          `).join('');
+        } else {
+          visionActions.innerHTML = '<div style="padding:0.7rem;border:1px solid var(--border);color:var(--text-muted);font-size:0.85rem;">No actions suggested.</div>';
+        }
+      } catch (e) {
+        radioLog(visionLogsEl, 'Vision', 'Upload failed: ' + e.message, 'error');
+        visionDiagnosis.textContent = 'Upload failed: ' + e.message;
+      }
+    }
+
+    visionActions.addEventListener('click', e => {
+      const btn = e.target.closest('.vision-action');
+      if (!btn) return;
+      const name = btn.dataset.name;
+      const safe = btn.dataset.safe === 'true';
+      radioLog(visionLogsEl, 'Vision', `${safe ? 'Ran' : 'Simulated'} action: ${name}`, 'info');
+      btn.textContent = `${safe ? 'Ran' : 'Simulated'} ${name}`;
+      btn.disabled = true;
+    });
 
     // Initialize static views
     renderStrategyMap();
