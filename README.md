@@ -1,59 +1,91 @@
 <div align="center">
 
-# VisionOps
+# cfire
 
-**See the problem. Fix the problem.**
+**Production Cerebras SDK + F1-styled benchmarking dashboard.**
 
-Image-aware SRE agent dashboard for the **Cerebras × Google DeepMind** hackathon.
+<p align="center">
+  <img src="static/screenshot_0.png" alt="cfire dashboard — RACE tab mid-sweep" width="90%">
+</p>
 
-`cfire` drives **15,791 tok/s** on `gema-4-31b` — Gemma 4 31B on Cerebras WSE-3.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Tests: 150](https://img.shields.io/badge/tests-150%20passed-brightgreen.svg)](#tests)
+[![Coverage: 89%](https://img.shields.io/badge/coverage-89%25-green.svg)](#tests)
 [![Model — Gemma 4 31B](https://img.shields.io/badge/model-gemma--4--31b-ff4d6d.svg)](https://www.deepmind.com/models/gemma)
 [![Inference — Cerebras](https://img.shields.io/badge/inference-Cerebras%20WSE--3-4ecdc4.svg)](https://www.cerebras.ai/)
-[![Status — Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#status)
-
-<br/>
-
-<!-- Screenshot placeholder — see "Screenshots" section below for capture guide -->
-<p align="center">
-  <em>📸 Screenshot slot — see <a href="#screenshots">capture guide</a>. The dashboard runs locally on <code>localhost:8000</code>.</em>
-</p>
 
 </div>
 
 ---
 
-## Table of contents
+## What this is
 
-1. [Why VisionOps wins](#why-visionops-wins)
-2. [Architecture](#architecture)
-3. [Features](#features)
-4. [Quick start](#quick-start)
-5. [Use `cfire` in code](#use-cfire-in-code)
-6. [Use the VisionOps agent](#use-the-visionops-agent)
-7. [Dashboard API](#dashboard-api)
-8. [Benchmarks](#benchmarks)
-9. [Environment variables](#environment-variables)
-10. [Project structure](#project-structure)
-11. [Tests](#tests)
-12. [Status](#status)
-13. [Roadmap](#roadmap)
-14. [License](#license)
-15. [Screenshots & demo assets](#screenshots)
+- **`cfire`** — a production-grade Python SDK over Cerebras Inference: typed retry/circuit-breaker/rate-limiter, real SSE streaming, tiered cache, multi-backend router, prefix-cache-aware `AgentSession`.
+- **F1 Race dashboard** — a FastAPI + vanilla-JS SPA that fires ~50 concurrent requests across 5 concurrency × token configs (P / 1 / 2 / 3 / DRS) and scores them on tok/s, req/s, and balanced sustainability. Live, in your browser.
+- **VisionOps** — an image-aware SRE agent on Gemma 4 31B: drop a screenshot of a failing dashboard, get a typed diagnosis with severity-tagged actions.
+
+## Why this is specifically Cerebras
+
+Three features in this repo are only meaningful on Cerebras-class inference. Each is verifiable in the source.
+
+- **`prompt_cache_key` pins KV across turns.** `AgentSession` hashes `(system_prompt, tool_defs)` to a deterministic key so the server keeps the prefix hot — turns 2+ skip prefill. ([`cfire/agent.py:49-102`](cfire/agent.py), [`cfire/models.py:73`](cfire/models.py))
+- **Rate-limit-aware concurrency.** A dual limiter tracks `req/min` + `tok/min` via `asyncio.Condition`, so the sweep saturates the ceiling without tripping the 6-fail circuit breaker. ([`cfire/reliability.py:159`](cfire/reliability.py), [`cfire/reliability.py:40`](cfire/reliability.py))
+- **Live headroom telemetry.** `headroom.py` tails the Cerebras log, parses `x-ratelimit-*` headers, and broadcasts snapshots to the dashboard — you see exactly when you're about to throttle. ([`headroom.py:300`](headroom.py))
+
+## Quick start
+
+```bash
+# 1. Clone
+git clone https://github.com/DesignerEE/Cerebras-Gemma4.git
+cd Cerebras-Gemma4
+
+# 2. Install (Python 3.11+)
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+
+# 3. Add your Cerebras key (get one at https://inference.cerebras.ai/)
+export CEREBRAS_API_KEY=csk-...
+
+# 4. Launch the dashboard
+python web_demo.py
+# → http://localhost:8000
+```
+
+Tabs: **RACE** (sweep + sustained benchmark), **NEWS** (multi-agent scout → commander pipeline), **VISION** (multimodal SRE diagnosis).
 
 ---
 
-## Why VisionOps wins
+## Table of contents
 
-Multiverse-agents pitch in three bullets:
+1. [The F1 Race](#the-f1-race)
+2. [Architecture](#architecture)
+3. [`cfire` SDK](#cfire-sdk)
+4. [AgentSession — prefix-cache-aware multi-turn](#agentsession--prefix-cache-aware-multi-turn)
+5. [VisionOps — image-aware SRE agent](#visionops--image-aware-sre-agent)
+6. [Dashboard API](#dashboard-api)
+7. [Benchmarks](#benchmarks)
+8. [Tests](#tests)
+9. [Project structure](#project-structure)
+10. [Roadmap & status](#roadmap--status)
+11. [License](#license)
+12. [Acknowledgements](#acknowledgements)
 
-- **Multimodal** — point any camera at a failing system; Gemma 4 31B sees the issue and prescribes a fix. Handles screenshots, dashboards, terminal output, and physical hardware photos.
-- **Multi-agent** — autonomous news scouts fan out for live context while the vision diagnosis runs; a commander agent synthesizes everything into a cited action plan.
-- **Physically aware** — the dashboard acts in the physical world: real-time Cerebras inference race telemetry drives the SRE control-room UI, not the other way around.
+---
 
-The unifying thesis: an image-aware SRE agent that reads the screen, gathers context, and pushes back into the physical world — with Cerebras-class speed as the connective tissue.
+## The F1 Race
+
+The "race" is a self-benchmark sweep. Five configs — labelled after F1 gears — fire concurrent requests against Cerebras Inference, and the dashboard scores them live on three axes: raw tok/s, req/s, and balanced sustainability.
+
+| Gear | Concurrency | Max tokens | Use case |
+|------|-------------|------------|----------|
+| **P** Pit  | 0  | 0    | Stop the car |
+| **1** Eco  | 8  | 250  | Low-latency probe |
+| **2** Race | 16 | 1000 | Balanced sustained race |
+| **3** Qualy | 24 | 1500 | Max tok/s qualifying lap |
+| **DRS** Boost | 32 | 1000 | Push limits (may queue) |
+
+Presets live in a single JS object at [`static/index.html:1660-1666`](static/index.html). The sweep runs all five in sequence, then transitions to a sustained phase at the winning config for ~20 seconds.
 
 ## Architecture
 
@@ -61,13 +93,13 @@ The unifying thesis: an image-aware SRE agent that reads the screen, gathers con
                  ┌────────────────────────────────────────────┐
                  │              Browser (SPA)                 │
                  │   static/index.html — vanilla JS, no build │
-                 │   EventSource SSE × 3 streams              │
+                 │   EventSource SSE × 4 streams              │
                  └──────────────────┬─────────────────────────┘
                                     │  fetch() + SSE
                                     ▼
                  ┌────────────────────────────────────────────┐
                  │       web_demo.py  (FastAPI + uvicorn)     │
-                 │       17 endpoints • 3 SSE channels        │
+                 │       18 endpoints • 4 SSE channels        │
                  │       RaceManager · NewsManager            │
                  └──┬──────────┬──────────┬──────────┬────────┘
                     │          │          │          │
@@ -89,60 +121,26 @@ The unifying thesis: an image-aware SRE agent that reads the screen, gathers con
                                │
                                ▼
                       Cerebras Inference API
-                      gemma-4-31b · ~1,500 TPS
+                      gemma-4-31b on WSE-3
 ```
 
-## Features
+Browser subscribes to four SSE channels (race / news / headroom / diffusiongemma). The FastAPI layer orchestrates three concurrent managers. Every call routes through `cfire`, which owns retry, circuit-breaking, rate-limiting, caching, and streaming.
 
-| Area | What you get |
-|---|---|
-| **Race dashboard** | Sweep concurrency × token configs, watch sustained tok/s live, deterministic post-race report + LLM analysis |
-| **Vision agent** | `vision_ops.VisionOpsAgent` — multimodal Gemma 4 31B diagnosis with a robust 3-stage response parser (delimited → JSON → free-text salvage) |
-| **News scouts** | `news_agents.NewsAgentTeam` — parallel scouts → commander synthesis with citations |
-| **`cfire` library** | Sync + async, OpenAI-compatible, `time_info` telemetry, `prompt_cache_key`, `predicted_output`, `service_tier`, `reasoning_effort` |
-| **Reliability** | Adaptive concurrency from `x-ratelimit-*` headers, exponential backoff, circuit breaker, tiered cache |
-| **Benchmark memory** | Index historical races, query by metric, compare configs — `benchmark_memory.BenchmarkMemory` |
-| **Telemetry** | Live rate-limit headroom + sparkline histogram of sustained throughput |
+## `cfire` SDK
 
-## Quick start
+The SDK extracted from this dashboard — usable on its own. 46 public symbols ([`cfire/__init__.py:69-96`](cfire/__init__.py)), grouped by concern:
 
-```bash
-# 1. Clone and enter
-git clone https://github.com/DesignerEE/Cerebras-Gemma4.git
-cd Cerebras-Gemma4
-
-# 2. Create venv and install
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-
-# 3. Add your Cerebras key (the .env file is gitignored)
-cat > .env <<'EOF'
-CEREBRAS_API_KEY=csk-...
-CEREBRAS_BASE_URL=https://api.cerebras.ai
-CFIRE_CEREBRAS_BASE_URL=https://api.cerebras.ai/v1
-EOF
-
-# 4. Smoke test
-python cerebras_smoke_test.py
-
-# 5. Launch the dashboard
-python web_demo.py
-# → http://localhost:8000
-```
-
-Use a different port if `8000` is taken:
-
-```bash
-python web_demo.py --port 8080
-```
-
-Tabs in the UI:
-- **RACE** — sweep configs, run a sustained race, watch live telemetry
-- **NEWS** — deploy commander-scout research agents on any query
-- **VISION** — upload a screenshot/diagram/photo for structured analysis
-
-## Use `cfire` in code
+| Group | What it gives you |
+|-------|-------------------|
+| **Client** | `AsyncCfire`, `Cfire` — sync + async OpenAI-compatible clients |
+| **Models** | `ChatRequest`, `ChatResponse`, `Message`, `StreamChunk`, `Usage`, `TimeInfo`, `Choice`, `ResponseFormat`, `PredictedOutput` |
+| **Agent** | `AgentSession` — prefix-cache-aware multi-turn (see below) |
+| **Reliability** | `RetryPolicy`, `CircuitBreaker` (opens at 6 fails, 30 s cooldown), `DualRateLimiter` (req/min + tok/min) |
+| **Cache** | `MemoryLRU` (bounded, TTL), `RedisCache` (zero-field-loss JSON), `TieredCache` (L1 + L2) |
+| **Transport** | `Transport`, `maybe_compress`, `parse_ratelimit_headers`, `parse_time_info` |
+| **Streaming** | `parse_sse_stream`, `parse_chunk_obj` — real SSE, not yield-the-whole-text |
+| **Backends** | `Backend`, `CerebrasBackend`, `DiffusionGemmaBackend`, `MockBackend` |
+| **Errors** | `CerebrasError` tree: `RetryableError` (`RateLimitError`, `ServerError`, `RequestTimeoutError`) vs `NonRetryableError` (`AuthError`, `BadRequestError`, `CircuitOpenError`) |
 
 ```python
 import asyncio
@@ -150,30 +148,43 @@ from cfire import AsyncCfire, ChatRequest
 
 async def main():
     async with AsyncCfire() as client:
-        response = await client.complete(ChatRequest(
+        r = await client.complete(ChatRequest(
             model="gemma-4-31b",
             messages=[{"role": "user", "content": "Hello, Cerebras."}],
         ))
-        print(response.choices[0].message.content)
-        # Per-response Cerebras telemetry:
-        print(response.time_info)  # queue_time / prompt_time / completion_time / total_time
+        print(r.choices[0].message.content)
+        print(r.time_info)  # queue_time / prompt_time / completion_time / total_time
 
 asyncio.run(main())
 ```
 
-### Why `cfire` and not the raw SDK
+Per-response `time_info` telemetry, adaptive concurrency driven by `x-ratelimit-*` headers, `predicted_output` for regeneration-heavy workloads, `service_tier` for queue priority, `reasoning_effort` for reasoning models — all on `ChatRequest`.
 
-- **`time_info` telemetry** — per-response `queue_time` / `prompt_time` / `completion_time`
-- **Adaptive concurrency** driven by `x-ratelimit-*` headers
-- **Server-side `prompt_cache_key`** for multi-turn conversations
-- **`predicted_output`** for regeneration-heavy workloads
-- **`service_tier`** (`flex` / `default` / `auto` / `priority`) — queue priority control
-- **`reasoning_effort`** (`low` / `medium` / `high`) for reasoning models
-- **Tiered cache** — bounded in-memory LRU + optional Redis
-- **Smart router** — Cerebras primary, local model fallback (Phase 3)
-- **Sync + async** — `cfire.Cfire` and `cfire.AsyncCfire`
+## AgentSession — prefix-cache-aware multi-turn
 
-## Use the VisionOps agent
+`AgentSession` pins `(system_prompt, tool_defs)` as a stable prefix, hashes it to a deterministic SHA-256, and sets `prompt_cache_key` on every request so Cerebras keeps the KV cache hot across turns. Same prefix → same key; different prefix → different key; tool order matters (KV layout depends on serialization order).
+
+```python
+import asyncio
+from cfire import AgentSession
+
+async def main():
+    async with AgentSession(
+        system="You are a senior SRE.",
+        tools=[{"type": "function", "function": {...}}],
+    ) as s:
+        r1 = await s.chat("Read the alert")
+        r2 = await s.chat("What changed in the last hour?")  # prefix cached → faster
+        print(s.prompt_cache_key)  # "agent-" + sha256[:16]
+
+asyncio.run(main())
+```
+
+Source: [`cfire/agent.py:49-102`](cfire/agent.py). The hash function is tested for determinism, tool-order sensitivity, and `None` handling ([`cfire/tests/test_agent_prefix_key.py`](cfire/tests/test_agent_prefix_key.py)).
+
+## VisionOps — image-aware SRE agent
+
+Drop a screenshot of a failing dashboard, terminal, or piece of hardware; get back a typed `Diagnosis` with severity (`info` / `warning` / `critical`) and a list of `Action` objects (`name`, `command`, `safe_to_run`).
 
 ```python
 import asyncio
@@ -182,139 +193,144 @@ from vision_ops import VisionOpsAgent
 async def main():
     with open("screenshot.png", "rb") as f:
         image_bytes = f.read()
-
-    agent = VisionOpsAgent()
-    diagnosis = await agent.analyze(image_bytes, mime_type="image/png")
-    print(diagnosis.summary)
-    print(diagnosis.severity)            # info | warning | critical
-    for action in diagnosis.actions:
-        print(action.name, action.command, action.safe_to_run)
+    agent = VisionOpsAgent()  # defaults to gemma-4-31b
+    d = await agent.analyze(image_bytes, mime_type="image/png")
+    print(d.severity)
+    for a in d.actions:
+        print(a.name, "|", a.command, "| safe:", a.safe_to_run)
 
 asyncio.run(main())
 ```
 
-Returns a typed `Diagnosis` Pydantic model. The parser handles whatever Gemma 4 emits — fenced JSON, XML-tagged JSON, delimited blocks, or free-text — and degrades gracefully to a severity-keyword salvage path.
+The parser is robust to whatever Gemma 4 emits — fenced JSON, XML-tagged JSON, delimited blocks, or free text — and degrades gracefully to a severity-keyword salvage path. Source: [`vision_ops/agent.py:76`](vision_ops/agent.py) (440 LoC, 2-file package).
 
 ## Dashboard API
 
-The FastAPI server exposes 17 endpoints. Highlights:
+`web_demo.py` ([815 lines](web_demo.py)) exposes **18 HTTP endpoints** (11 GET + 7 POST) across 6 functional groups, including **4 SSE channels**.
 
+### RACE (7 endpoints)
 | Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/` | Dashboard HTML |
-| `POST` | `/api/start` | Start a sweep + sustained race |
-| `POST` | `/api/stop` | Abort the current race |
-| `GET` | `/api/stream` | SSE: live race telemetry |
-| `POST` | `/api/news/start` | Spawn news scouts + commander |
-| `GET` | `/api/news/stream` | SSE: scout progress + report |
-| `POST` | `/api/vision/analyze` | Multimodal image diagnosis |
-| `GET` | `/api/headroom/status` | Rate-limit headroom snapshot |
-| `GET` | `/api/benchmark/memory/insights` | Aggregate historical insights |
+|-------|------|---------|
+| `GET`  | `/` | Dashboard HTML |
+| `POST` | `/api/start` | Start sweep + sustained race |
+| `POST` | `/api/stop` | Abort current race |
+| `GET`  | `/api/status` | Server status |
+| `GET`  | `/api/race/report` | Fetch race report |
+| `POST` | `/api/race/report/llm` | LLM analysis of report |
+| `GET`  | [`/api/stream`](web_demo.py:553) | **SSE** — live race telemetry |
 
-Full list in the source (`web_demo.py`).
+### NEWS (3 endpoints)
+| Method | Path | Purpose |
+|-------|------|---------|
+| `POST` | `/api/news/start` | Spawn scouts + commander |
+| `POST` | `/api/news/stop` | Stop news agents |
+| `GET`  | [`/api/news/stream`](web_demo.py:593) | **SSE** — scout progress + report |
+
+### HEADROOM (2 endpoints)
+| Method | Path | Purpose |
+|-------|------|---------|
+| `GET`  | `/api/headroom/status` | Rate-limit headroom snapshot |
+| `GET`  | [`/api/headroom/stream`](web_demo.py:619) | **SSE** — headroom live |
+
+### BENCHMARK MEMORY (4 endpoints)
+| Method | Path | Purpose |
+|-------|------|---------|
+| `GET`  | `/api/benchmark/memory/insights` | Aggregate historical insights |
+| `GET`  | `/api/benchmark/memory/search` | Search prior runs |
+| `GET`  | `/api/benchmark/memory/compare` | Compare configs |
+| `POST` | `/api/benchmark/memory/test` | One-off benchmark test |
+
+### DIFFUSION (1 endpoint)
+| Method | Path | Purpose |
+|-------|------|---------|
+| `GET`  | [`/api/diffusiongemma/stream_test`](web_demo.py:678) | **SSE** — DiffusionGemma4 test stream |
+
+### VISION (1 endpoint)
+| Method | Path | Purpose |
+|-------|------|---------|
+| `POST` | [`/api/vision/analyze`](web_demo.py:772) | Multimodal image diagnosis |
 
 ## Benchmarks
 
-Real runs against `gemma-4-31b` on the Developer tier:
+The dashboard **is** the benchmark — every number is reproducible from a fresh `python web_demo.py` run. A peak tok/s figure quoted in a README would be meaningless: it depends on your Cerebras tier, model, time of day, and sweep config. Open the RACE tab, press START, watch the gauge.
 
-| Concurrency | Max tokens | Best tok/s | req/s |
-|-------------|-----------|------------|-------|
-| **24**      | **1000**  | **15,791** | 15.79 |
-| 16          | 1500      | 15,170     | 10.11 |
-| 24          | 750       | 13,566     | 18.09 |
-| 16          | 1000      |  7,505     |  7.51 |
-| 8           | 200       |  5,653     | 33.75 |
+What the sweep measures, concretely:
 
-Dashboard presets:
+- **Per-config tok/s** — completion tokens / wall-clock completion time, averaged across all concurrent requests in that config.
+- **Per-config req/s** — completed requests / sweep duration.
+- **Sustained-phase behavior** — after the sweep, the winning config runs for ~20 s to expose throttling, circuit-breaker trips, and queueing.
+- **Headroom** — live `x-ratelimit-*` consumption — watch the ceiling approach in real time.
 
-| Mode | Concurrency | Max tokens | Use case |
-|------|-------------|------------|----------|
-| 1 Eco       | 8  | 250  | Low-latency probe |
-| 2 Race      | 16 | 1000 | Balanced sustained race |
-| 3 Qualy     | 24 | 1500 | **Max tok/s qualifying lap** |
-| DRS Boost   | 32 | 1000 | Push limits (may queue) |
+For full tuning guidance (when to use Eco vs Qualy, how to read circuit-breaker trips, how to read the headroom sparkline), see [`CEREBRAS_SPEED_GUIDE.md`](CEREBRAS_SPEED_GUIDE.md) and [`HEADROOM.md`](HEADROOM.md).
 
-**Peak:** `24 concurrency × 1000–1500 tokens` on the Developer tier. Concurrency above 32 tends to queue or hit rate limits.
+## Tests
 
-See [`CEREBRAS_SPEED_GUIDE.md`](CEREBRAS_SPEED_GUIDE.md) for the full tuning guide.
+```bash
+# Main suite — cfire + vision_ops + news pipeline
+pytest cfire/tests tests/ -q --cov=cfire --cov-report=term-missing
+```
 
-## Environment variables
+**150 passed, 1 xfailed** (~89 % coverage on `cfire/`). The single xfail is a Phase-3 router placeholder. Async tests run on `asyncio_mode = auto` — no `@pytest.mark.asyncio` boilerplate.
 
-| Variable | Purpose | Default |
-|---|---|---|
-| `CEREBRAS_API_KEY` | Required Cerebras API key | — |
-| `CEREBRAS_BASE_URL` | Host for the Cerebras Python SDK | `https://api.cerebras.ai` |
-| `CFIRE_CEREBRAS_BASE_URL` | Full `/v1` URL for cfire's direct HTTP path | `https://api.cerebras.ai/v1` |
-| `CFIRE_MODEL` | Default model | `gemma-4-31b` |
-| `CFIRE_CONCURRENCY` | Default concurrency | `16` |
-| `CFIRE_REQ_PER_MIN` | Request-rate ceiling | `1000` |
-| `CFIRE_TOK_PER_MIN` | Token-rate ceiling | `1_000_000` |
-| `VISIONOPS_MODEL` | Model for VisionOps | `gemma-4-31b` |
+Notable coverage: `AgentSession` lifecycle + tool-order sensitivity ([`cfire/tests/test_agent.py`](cfire/tests/test_agent.py), [`cfire/tests/test_agent_prefix_key.py`](cfire/tests/test_agent_prefix_key.py)), real SSE parsing ([`cfire/tests/test_streaming.py`](cfire/tests/test_streaming.py)), tiered-cache serialization round-trip, retry-policy exception classification, dual-rate-limiter concurrency.
 
 ## Project structure
 
 ```
 .
-├── cfire/                       # core fast-inference library (Phase 3 in progress)
-├── cfire-diffusion/             # variant with DiffusionGemma4 backend
-├── vision_ops/                  # multimodal SRE diagnosis agent
-├── web_demo.py                  # FastAPI dashboard (17 endpoints, 3 SSE streams)
-├── static/index.html            # terminal/F1-styled SPA frontend
+├── cfire/                       # core SDK — 16 modules, 46 public symbols
+│   ├── __init__.py              # public surface
+│   ├── agent.py                 # AgentSession (prefix-cache-aware)
+│   ├── client.py                # AsyncCfire + Cfire
+│   ├── models.py                # ChatRequest/Response, prompt_cache_key, etc.
+│   ├── reliability.py           # RetryPolicy + CircuitBreaker + DualRateLimiter
+│   ├── cache.py                 # MemoryLRU + RedisCache + TieredCache
+│   ├── streaming.py             # real SSE parser
+│   ├── transport.py             # HTTP transport + rate-limit parsing
+│   ├── backends.py              # CerebrasBackend + DiffusionGemmaBackend
+│   └── tests/                   # 150-unit suite
+├── vision_ops/                  # image-aware SRE agent (440 LoC, 2 files)
+├── web_demo.py                  # FastAPI dashboard (815 lines, 18 endpoints, 4 SSE)
+├── static/index.html            # vanilla-JS SPA frontend (2415 lines)
+├── news_agents.py               # commander-scout news pipeline (349 lines)
+├── headroom.py                  # rate-limit headroom monitor (370 lines)
+├── benchmark_memory.py          # historical race indexing (227 lines)
+├── cerebras_race_client.py      # legacy shim — Phase 4 migration target
 ├── cerebras_smoke_test.py       # quick API connectivity check
-├── cerebras_race_optimizer.py   # race tuning helpers
-├── news_agents.py               # commander-scout news pipeline
-├── benchmark_memory.py          # historical race indexing
-├── headroom.py                  # rate-limit headroom monitor
-├── build_demo_video.py          # ffmpeg assembler for 60s hackathon demo
-├── DESIGN.md                    # control-room design system
-├── demo_storyboard.md           # 60-second demo shot list
-├── CEREBRAS_SPEED_GUIDE.md      # full benchmark + tuning guide
-├── BENCHMARK_MEMORY.md          # benchmark-memory service docs
+├── cerebras_race_optimizer.py   # race-tuning helpers
+├── build_demo_video.py          # ffmpeg assembler for 60 s hackathon demo
+├── pyproject.toml               # package metadata
+├── pytest.ini                   # asyncio_mode=auto
 └── LICENSE                      # MIT
 ```
 
-## Tests
+## Roadmap & status
 
-```bash
-# Main suite
-pytest cfire/tests tests/ -q
+**Alpha — actively polishing for hackathon submission.**
 
-# DiffusionGemma4 variant (run from its own dir due to import path overlap)
-cd cfire-diffusion && pytest cfire/tests -q
-```
+Done:
+- ✅ `cfire` SDK: client, models, reliability, cache, transport, streaming, agent session
+- ✅ F1 RACE dashboard with sweep + sustain + LLM report
+- ✅ VisionOps multimodal SRE diagnosis (Gemma 4 31B)
+- ✅ News multi-agent scout → commander pipeline
+- ✅ Headroom + benchmark-memory panels
+- ✅ 150 tests passing, ~89 % coverage, 0 embedded secrets
 
-Coverage: 89% on `cfire/` — 101 passed, 1 xfailed (router Phase 3 placeholder).
-
-## Status
-
-**Alpha.** Extracted from `cerebras-bench` where `cfire` sustained **15,791 tok/s** on `gemma-4-31b`.
-
-## Roadmap
-
-- **Phase 3** (in progress) — `cfire` smart router with `LocalBackend` (local-Qwen fallback) and `CDNBackend` (edge proxy). `Router` is itself a `Backend` so it composes under `AsyncCfire`.
-- **Phase 4** — migrate `news_agents.py`, `web_demo.py`, `cerebras_smoke_test.py` off the `_compat` shim onto native `cfire.AsyncCfire`. Delete the shim afterwards.
-
-See [`cfire/`](cfire/) for the in-progress router design.
+In progress / pending (tracked in [`tasks/todo.md`](tasks/todo.md)):
+- 🔄 Migrate `web_demo.py` + `news_agents.py` off the `cerebras_race_client.py` legacy shim onto native `cfire.AsyncCfire`, then delete the shim
+- 🔄 Delete the `cfire-diffusion/` experimental fork (separate variant, kept temporarily)
+- 🔄 Add CI workflow (`.github/workflows/test.yml`), `.env.example`, favicon
+- 🔄 Fix `pyproject.toml` author metadata + `project.urls` (currently points to a placeholder repo)
+- 🔄 Decompose `web_demo.py:RaceManager` (currently a god-object)
 
 ## License
 
-[MIT](LICENSE) — © 2026 DesignerEE.
+[MIT](LICENSE) © 2026 DesignerEE.
 
-## Screenshots
+## Acknowledgements
 
-The dashboard runs locally — there is no hosted demo. To capture screenshots for this README:
-
-1. **Launch the dashboard:** `python web_demo.py` → open `http://localhost:8000`
-2. **Browser zoom** to ~125% for crisp 1080p captures (Ctrl/Cmd + `+`)
-3. **Hide browser chrome** with F11 or a clean browser profile
-4. **For the RACE tab:** press START, wait for the sustained race phase (~20s), capture mid-run with gauges peaked
-5. **For the VISION tab:** upload a screenshot of an error message / failing device; capture the diagnosis card
-6. **For the NEWS tab:** enter a query like `"latest Cerebras inference updates"`, deploy scouts, capture mid-pipeline
-
-Drop captures into `docs/` (create the dir) and embed with:
-
-```markdown
-![Race tab at peak](docs/race_peak.png)
-```
-
-For the 60-second hackathon demo video, follow the shot list in [`demo_storyboard.md`](demo_storyboard.md) and assemble with [`build_demo_video.py`](build_demo_video.py).
+- [Cerebras Inference](https://www.cerebras.ai/) — the WSE-3 hardware + inference API this project is built on
+- [FastAPI](https://fastapi.tiangolo.com/) + [uvicorn](https://www.uvicorn.org/) — the dashboard server
+- [Pydantic](https://docs.pydantic.dev/) — typed models up and down the stack
+- [httpx](https://www.python-httpx.org/) — HTTP client with first-class async + HTTP/2
+- [Gemma 4 31B](https://www.deepmind.com/models/gemma) — the vision/SRE reasoning model
