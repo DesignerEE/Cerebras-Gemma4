@@ -188,7 +188,7 @@ class DiffusionGemmaBackend(CerebrasBackend):
     """Local DiffusionGemma4 inference server.
 
     Targets the OpenAI-compatible endpoint served by vLLM on
-    ``CFIRE_DIFFUSIONGEMMA_BASE_URL`` (default ``http://192.168.10.100:1235``).
+    ``CFIRE_DIFFUSIONGEMMA_BASE_URL`` (default ``https://api.cerebras.ai/v1``).
     DiffusionGemma4 is treated as a coding model: the Router sends tool-calling
     and code-keyword requests here by default.
     """

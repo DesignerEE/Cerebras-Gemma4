@@ -677,9 +677,10 @@ async def benchmark_memory_test(file: UploadFile = File(...)):
 
 @app.get("/api/diffusiongemma/stream_test")
 async def stream_test_diffusiongemma():
-    """Streaming inference test against the LAN DiffusionGemma4 server.
+    """Streaming inference test against a DiffusionGemma4 endpoint.
 
-    Targets ``192.168.10.100:1235`` (the vLLM DiffusionGemma4 instance).
+    Targets ``CFIRE_DIFFUSIONGEMMA_BASE_URL`` (default: the Cerebras API;
+    point it at your own vLLM DiffusionGemma server to test a local instance).
     Because this diffusion model returns the full response in a single SSE
     chunk, the token count is estimated from the generated text length so the
     dashboard Speed gauge shows a realistic tok/s value.

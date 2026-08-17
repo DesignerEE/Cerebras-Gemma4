@@ -55,7 +55,7 @@ def get_api_key(env_var: str = "CEREBRAS_API_KEY") -> str:
 # --- DiffusionGemma defaults --------------------------------------------
 
 DIFFUSIONGEMMA_BASE_URL = os.environ.get(
-    "CFIRE_DIFFUSIONGEMMA_BASE_URL", "http://192.168.10.100:1235"
+    "CFIRE_DIFFUSIONGEMMA_BASE_URL", "https://api.cerebras.ai/v1"
 )
 DIFFUSIONGEMMA_MODEL = os.environ.get(
     "CFIRE_DIFFUSIONGEMMA_MODEL", "nvidia/diffusiongemma-26B-A4B-it-NVFP4"

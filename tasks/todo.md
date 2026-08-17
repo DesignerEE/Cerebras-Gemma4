@@ -21,8 +21,9 @@
       parse `x-ratelimit-*`)
 - [ ] `pyproject`: add extras `[demo]` (fastapi, uvicorn, feedparser, beautifulsoup4,
       lxml) — `web_demo.py`/`news_agents.py` currently fail on import; drop unused
-      `anyio`; exclude `cfire/tests` from the wheel; remove the private LAN IP default
-      (`192.168.10.100:1235` in `cfire/config.py:37-39`) → env-only
+      `anyio`; exclude `cfire/tests` from the wheel; ~~remove the private LAN IP
+      default~~ **DONE (2026-08-17):** all `192.168.10.100:1235` defaults replaced with
+      `https://api.cerebras.ai/v1` in both trees (config, backends, tests, docs)
 - [ ] `.env.example` + an env-var matrix (~16 vars, see `cfire/config.py:7-25`)
 - [ ] `examples/`: 01_complete.py, 02_stream.py, 03_bulk_autopilot.py — each runnable
       in one command

@@ -35,7 +35,7 @@ from .exceptions import ConfigError
 CEREBRAS_BASE_URL = os.environ.get("CFIRE_CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1")
 LOCAL_BASE_URL = os.environ.get("CFIRE_LOCAL_BASE_URL", "http://127.0.0.1:8123")
 DIFFUSIONGEMMA_BASE_URL = os.environ.get(
-    "CFIRE_DIFFUSIONGEMMA_BASE_URL", "http://192.168.10.100:1235/v1"
+    "CFIRE_DIFFUSIONGEMMA_BASE_URL", "https://api.cerebras.ai/v1"
 )
 DIFFUSIONGEMMA_MODEL = os.environ.get(
     "CFIRE_DIFFUSIONGEMMA_MODEL", "nvidia/diffusiongemma-26B-A4B-it-NVFP4"

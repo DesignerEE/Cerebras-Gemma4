@@ -63,7 +63,7 @@ client = AsyncCfire(backend=Router(
     primary=CerebrasBackend(),
     fallbacks=[
         DiffusionGemmaBackend(
-            base_url="http://192.168.10.100:1235/v1",
+            base_url="https://api.cerebras.ai/v1",
             model="nvidia/diffusiongemma-26B-A4B-it-NVFP4",
         ),
     ],
@@ -79,7 +79,7 @@ Requests matching `prefer_local_for` go to DiffusionGemma first; everything else
 
 | Env var | Default | Purpose |
 |---|---|---|
-| `CFIRE_DIFFUSIONGEMMA_BASE_URL` | `http://192.168.10.100:1235` | DiffusionGemma OpenAI-compatible server URL |
+| `CFIRE_DIFFUSIONGEMMA_BASE_URL` | `https://api.cerebras.ai/v1` | DiffusionGemma OpenAI-compatible server URL |
 | `CFIRE_DIFFUSIONGEMMA_MODEL` | `nvidia/diffusiongemma-26B-A4B-it-NVFP4` | DiffusionGemma model ID |
 | `CFIRE_DIFFUSIONGEMMA_API_KEY` | `""` | Optional API key if your DiffusionGemma server requires one |
 | `CFIRE_CEREBRAS_BASE_URL` | `https://api.cerebras.ai/v1` | Cerebras endpoint |
@@ -108,7 +108,7 @@ Must run from this directory because of import-path overlap with the parent `cfi
 ## Caveats
 
 - **Package name collision.** Both this variant and the parent declare `name = "cfire"` in `pyproject.toml`. They cannot coexist in the same environment — uninstall one before installing the other, or use separate venvs.
-- **LAN dependency.** The default DiffusionGemma URL (`192.168.10.100:1235`) is on the author's LAN. Point `CFIRE_DIFFUSIONGEMMA_BASE_URL` at your own server.
+- **Self-hosted DiffusionGemma.** The default DiffusionGemma URL is the Cerebras API. To use your own server (e.g. a local vLLM instance), point `CFIRE_DIFFUSIONGEMMA_BASE_URL` at it.
 - **No multimodal.** `Message.content` is `str` only. Use the parent `cfire/` package if you need image + text messages (as `vision_ops` does).
 
 ## Related

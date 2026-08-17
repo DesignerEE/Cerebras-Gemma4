@@ -218,7 +218,7 @@ async def test_cerebras_backend_stream_uses_transport_stream_chat():
 
 def test_diffusiongemma_backend_defaults():
     b = DiffusionGemmaBackend()
-    assert b.base_url == "http://192.168.10.100:1235"
+    assert b.base_url == "https://api.cerebras.ai/v1"
     assert b._default_model() == "nvidia/diffusiongemma-26B-A4B-it-NVFP4"
 
 
